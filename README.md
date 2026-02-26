@@ -1,9 +1,8 @@
-# Adversarial Skill Embeddings
+# Heteromorphic Humanoid Imitation
 
 Code accompanying the paper:
 "ASE: Large-Scale Reusable Adversarial Skill Embeddings for Physically Simulated Characters" \
-(https://xbpeng.github.io/projects/ASE/index.html) \
-![Skills](images/ase_teaser.png)
+(https://xbpeng.github.io/projects/ASE/index.html)
 
 
 ### Installation
