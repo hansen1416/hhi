@@ -1,0 +1,66 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "View amass phc",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/ase/run.py",
+            "console": "integratedTerminal",
+            "python": "/home/hlz/anaconda3/envs/phc/bin/python",
+            "args": [
+                "--task",
+                "HumanoidViewMotion",
+                "--num_envs",
+                "2",
+                "--cfg_env",
+                "ase/data/cfg/humanoid_phc.yaml",
+                "--cfg_train",
+                "ase/data/cfg/train/rlg/phc_humanoid.yaml",
+                "--motion_file",
+                "/home/hlz/datasets/humos_results/a_person_squats_and_rais_male_00c972db.pkl",
+            ],
+        },
+        {
+            "name": "Train amp smpl",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/ase/run.py",
+            "console": "integratedTerminal",
+            "python": "/home/hlz/anaconda3/envs/phc/bin/python",
+            "args": [
+                "--task",
+                "HumanoidAMP",
+                "--cfg_env",
+                "ase/data/cfg/humanoid_ase_smpl.yaml",
+                "--cfg_train",
+                "ase/data/cfg/train/rlg/amp_humanoid.yaml",
+                "--motion_file",
+                "/home/hlz/datasets/amass-pkls/0-ACCAD_Female1Running_c3d_C4-Runtowalk1_poses.pkl",
+            ]
+        },
+        {
+            "name": "Test amp smpl",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/ase/run.py",
+            "console": "integratedTerminal",
+            "python": "/home/hlz/anaconda3/envs/phc/bin/python",
+            "args": [
+                "--test",
+                "--task",
+                "HumanoidAMP",
+                "--num_envs",
+                "16",
+                "--cfg_env",
+                "ase/data/cfg/humanoid_ase_smpl.yaml",
+                "--cfg_train",
+                "ase/data/cfg/train/rlg/amp_humanoid.yaml",
+                "--motion_file",
+                "/home/hlz/datasets/amass-pkls/0-ACCAD_Female1Running_c3d_C4-Runtowalk1_poses.pkl",
+                "--checkpoint",
+                "/home/hlz/Documents/amp_smpl/Humanoid_30-12-08-46/nn/Humanoid_1850.pth"
+            ],
+        },
+    ]
+}

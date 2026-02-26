@@ -1,0 +1,133 @@
+# if given, will override the device setting in gym.
+env:
+  numEnvs: 4096
+  envSpacing: 2
+  episodeLength: 300
+  isFlagrun: False
+  enableDebugVis: False
+
+  pdControl: True
+  powerScale: 1.0
+  controlFrequencyInv: 2 # 30 Hz
+  stateInit: "Hybrid"
+  hybridInitProb: 0.5
+  numAMPObsSteps: 10
+
+  localRootObs: True
+  keyBodies: ["R_Ankle", "L_Ankle", "R_Wrist", "L_Wrist"]
+  contactBodies: ["R_Ankle", "L_Ankle", "R_Toe", "L_Toe"]
+  resetBodies:
+    [
+      "Pelvis",
+      "L_Hip",
+      "L_Knee",
+      "R_Hip",
+      "R_Knee",
+      "Torso",
+      "Spine",
+      "Chest",
+      "Neck",
+      "Head",
+      "L_Thorax",
+      "L_Shoulder",
+      "L_Elbow",
+      "L_Wrist",
+      "L_Hand",
+      "R_Thorax",
+      "R_Shoulder",
+      "R_Elbow",
+      "R_Wrist",
+      "R_Hand",
+    ]
+  terminationHeight: 0.15
+  enableEarlyTermination: True
+
+  asset:
+    assetRoot: "ase/data/assets"
+    assetFileName:
+      - mjcf/smpl/a0f02530_smpl.xml
+      - mjcf/smpl/b156eebd_smpl.xml
+      - mjcf/smpl/584b793a_smpl.xml
+      - mjcf/smpl/aef91182_smpl.xml
+      - mjcf/smpl/0c3f729e_smpl.xml
+      - mjcf/smpl/1f0234a6_smpl.xml
+      - mjcf/smpl/aaab922b_smpl.xml
+      - mjcf/smpl/97d89d08_smpl.xml
+      - mjcf/smpl/f16065b0_smpl.xml
+      - mjcf/smpl/5dcdf59a_smpl.xml
+      - mjcf/smpl/7e43c211_smpl.xml
+      - mjcf/smpl/f00a7a9f_smpl.xml
+      - mjcf/smpl/25bef108_smpl.xml
+      - mjcf/smpl/85c00aec_smpl.xml
+      - mjcf/smpl/5636a12a_smpl.xml
+      - mjcf/smpl/33a17abb_smpl.xml
+      - mjcf/smpl/124f1e57_smpl.xml
+      - mjcf/smpl/e585e9fd_smpl.xml
+      - mjcf/smpl/520ed34f_smpl.xml
+      - mjcf/smpl/5dbdeb54_smpl.xml
+      - mjcf/smpl/65f23504_smpl.xml
+      - mjcf/smpl/948528ba_smpl.xml
+      - mjcf/smpl/b3428686_smpl.xml
+      - mjcf/smpl/0e091a72_smpl.xml
+      - mjcf/smpl/f0f7976f_smpl.xml
+      - mjcf/smpl/20cf78b3_smpl.xml
+      - mjcf/smpl/aca66100_smpl.xml
+      - mjcf/smpl/af4dbe08_smpl.xml
+      - mjcf/smpl/f56ef3f7_smpl.xml
+      - mjcf/smpl/fba2c39a_smpl.xml
+      - mjcf/smpl/75e01b05_smpl.xml
+      - mjcf/smpl/31f56211_smpl.xml
+      - mjcf/smpl/b80aed9f_smpl.xml
+      - mjcf/smpl/706ed6c9_smpl.xml
+      - mjcf/smpl/39f19cab_smpl.xml
+      - mjcf/smpl/fcc491cd_smpl.xml
+      - mjcf/smpl/bc793600_smpl.xml
+      - mjcf/smpl/74fc526e_smpl.xml
+      - mjcf/smpl/09016021_smpl.xml
+      - mjcf/smpl/6895f004_smpl.xml
+      - mjcf/smpl/602dbc36_smpl.xml
+      - mjcf/smpl/22e9a6f8_smpl.xml
+      - mjcf/smpl/0f637664_smpl.xml
+      - mjcf/smpl/85011266_smpl.xml
+      - mjcf/smpl/ef483c8a_smpl.xml
+      - mjcf/smpl/9f630f94_smpl.xml
+      - mjcf/smpl/dc46f761_smpl.xml
+      - mjcf/smpl/c51c47d2_smpl.xml
+      - mjcf/smpl/3577c351_smpl.xml
+      - mjcf/smpl/18ce6b2c_smpl.xml
+      - mjcf/smpl/ef892c76_smpl.xml
+      - mjcf/smpl/349bdc0e_smpl.xml
+      - mjcf/smpl/15c4d2e9_smpl.xml
+      - mjcf/smpl/6803e1fa_smpl.xml
+      - mjcf/smpl/e9f8d7a4_smpl.xml
+      - mjcf/smpl/8a24b3b7_smpl.xml
+      - mjcf/smpl/00c972db_smpl.xml
+      - mjcf/smpl/6046abb1_smpl.xml
+      - mjcf/smpl/76144ae7_smpl.xml
+      - mjcf/smpl/e698f1e8_smpl.xml
+      - mjcf/smpl/0a1ece18_smpl.xml
+      - mjcf/smpl/638a4fb7_smpl.xml
+      - mjcf/smpl/b944e212_smpl.xml
+      - mjcf/smpl/2a31c8ac_smpl.xml
+
+  plane:
+    staticFriction: 1.0
+    dynamicFriction: 1.0
+    restitution: 0.0
+
+sim:
+  substeps: 2
+  physx:
+    num_threads: 4
+    solver_type: 1 # 0: pgs, 1: tgs
+    num_position_iterations: 4
+    num_velocity_iterations: 0
+    contact_offset: 0.02
+    rest_offset: 0.0
+    bounce_threshold_velocity: 0.2
+    max_depenetration_velocity: 10.0
+    default_buffer_size_multiplier: 10.0
+
+  flex:
+    num_inner_iterations: 10
+    warm_start: 0.25
