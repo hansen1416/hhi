@@ -6,12 +6,12 @@ docker pull hansen1416/phc:latest
 
 cd /home/
 
-git clone https://github.com/hansen1416/ASE.git
+git clone https://github.com/hansen1416/hhi.git
 
-cd /home/ASE/ && mkdir output && chmod -R 777 output/
+cd /home/hhi/ && mkdir output && chmod -R 777 output/
 
 
-scp -i ~/.ssh/id_ed25519 /home/hlz/datasets/humos_results.zip root@202.181.159.138:/home/ASE
+scp -i ~/.ssh/id_ed25519 /home/hlz/datasets/humos_results.zip root@202.181.159.138:/home/hhi
 
 apt install zip unzip
 
@@ -27,7 +27,7 @@ apt install zip unzip
 > -d (--detach): run the container in the background and do not attach your terminal; Docker just prints the container ID and returns you to your shell.
 
 docker run -d \
---mount type=bind,source=$HOME/repos/ASE,target=/home/gymuser/ASE \
+--mount type=bind,source=$HOME/repos/hhi,target=/home/gymuser/hhi \
 --network=host \
 --gpus=all \
 --ipc=host \
@@ -37,7 +37,7 @@ hansen1416/phc \
 tail -f /dev/null
 
 docker run -d \
---mount type=bind,source=/home/ASE,target=/home/gymuser/ASE \
+--mount type=bind,source=/home/hhi,target=/home/gymuser/hhi \
 --network=host \
 --gpus=all \
 --ipc=host \
@@ -52,4 +52,4 @@ docker exec -it <CONTAINER_ID> /bin/bash
 ---------------
 
 
-python ase/run.py --task HumanoidPHC --cfg_env ase/data/cfg/humanoid_phc.yaml --cfg_train ase/data/cfg/train/rlg/phc_humanoid.yaml --motion_file /home/gymuser/ASE/humos_results/ --headless
+python ase/run.py --task HumanoidPHC --cfg_env ase/data/cfg/humanoid_phc.yaml --cfg_train ase/data/cfg/train/rlg/phc_humanoid.yaml --motion_file /home/gymuser/hhi/humos_results/ --headless
