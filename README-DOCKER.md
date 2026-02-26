@@ -2,6 +2,8 @@ Following instruction in `PHC/docs/docker_instruction.MD`
 
 ---
 
+docker pull hansen1416/phc:latest
+
 cd /home/
 
 git clone https://github.com/hansen1416/ASE.git
