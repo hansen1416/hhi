@@ -16,7 +16,7 @@ from torch import nn
 import learning.replay_buffer as replay_buffer
 import learning.common_agent as common_agent 
 
-from tensorboardX import SummaryWriter
+from ase.learning.wandb_logger import wandb_logger
 
 class PHCAgent(common_agent.CommonAgent):
     """
@@ -49,6 +49,13 @@ class PHCAgent(common_agent.CommonAgent):
         AMPAgent additionally creates an RMS normalizer for amp_obs (if enabled).
         """
         super().__init__(base_name, config)
+
+        # === Wandb logging (hardcoded in wandb_logger.py) ===
+        self._wandb_enabled = wandb_logger.enabled
+        if self._wandb_enabled:
+            # use the experiment name that rl_games already uses
+            wandb_logger.init(config_dict=config)
+        # ====================================================
 
         if self._normalize_amp_input:
             self._amp_input_mean_std = RunningMeanStd(self._amp_observation_space.shape).to(self.ppo_device)
@@ -1054,18 +1061,46 @@ class PHCAgent(common_agent.CommonAgent):
         """
         super()._log_train_info(train_info, frame)
 
-        self.writer.add_scalar('losses/disc_loss', torch_ext.mean_list(train_info['disc_loss']).item(), frame)
+        # self.writer.add_scalar('losses/disc_loss', torch_ext.mean_list(train_info['disc_loss']).item(), frame)
 
-        self.writer.add_scalar('info/disc_agent_acc', torch_ext.mean_list(train_info['disc_agent_acc']).item(), frame)
-        self.writer.add_scalar('info/disc_demo_acc', torch_ext.mean_list(train_info['disc_demo_acc']).item(), frame)
-        self.writer.add_scalar('info/disc_agent_logit', torch_ext.mean_list(train_info['disc_agent_logit']).item(), frame)
-        self.writer.add_scalar('info/disc_demo_logit', torch_ext.mean_list(train_info['disc_demo_logit']).item(), frame)
-        self.writer.add_scalar('info/disc_grad_penalty', torch_ext.mean_list(train_info['disc_grad_penalty']).item(), frame)
-        self.writer.add_scalar('info/disc_logit_loss', torch_ext.mean_list(train_info['disc_logit_loss']).item(), frame)
+        # self.writer.add_scalar('info/disc_agent_acc', torch_ext.mean_list(train_info['disc_agent_acc']).item(), frame)
+        # self.writer.add_scalar('info/disc_demo_acc', torch_ext.mean_list(train_info['disc_demo_acc']).item(), frame)
+        # self.writer.add_scalar('info/disc_agent_logit', torch_ext.mean_list(train_info['disc_agent_logit']).item(), frame)
+        # self.writer.add_scalar('info/disc_demo_logit', torch_ext.mean_list(train_info['disc_demo_logit']).item(), frame)
+        # self.writer.add_scalar('info/disc_grad_penalty', torch_ext.mean_list(train_info['disc_grad_penalty']).item(), frame)
+        # self.writer.add_scalar('info/disc_logit_loss', torch_ext.mean_list(train_info['disc_logit_loss']).item(), frame)
 
-        disc_reward_std, disc_reward_mean = torch.std_mean(train_info['disc_rewards'])
-        self.writer.add_scalar('info/disc_reward_mean', disc_reward_mean.item(), frame)
-        self.writer.add_scalar('info/disc_reward_std', disc_reward_std.item(), frame)
+        # disc_reward_std, disc_reward_mean = torch.std_mean(train_info['disc_rewards'])
+        # self.writer.add_scalar('info/disc_reward_mean', disc_reward_mean.item(), frame)
+        # self.writer.add_scalar('info/disc_reward_std', disc_reward_std.item(), frame)
+
+        if not self._wandb_enabled or (self.epoch_num % wandb_logger.log_every != 0):
+            return
+
+        log_dict = {
+            "losses/disc_loss": torch_ext.mean_list(train_info["disc_loss"]).item(),
+            "info/disc_agent_acc": torch_ext.mean_list(train_info["disc_agent_acc"]).item(),
+            "info/disc_demo_acc": torch_ext.mean_list(train_info["disc_demo_acc"]).item(),
+            "info/disc_agent_logit": torch_ext.mean_list(train_info["disc_agent_logit"]).item(),
+            "info/disc_demo_logit": torch_ext.mean_list(train_info["disc_demo_logit"]).item(),
+            "info/disc_grad_penalty": torch_ext.mean_list(train_info["disc_grad_penalty"]).item(),
+            "info/disc_logit_loss": torch_ext.mean_list(train_info["disc_logit_loss"]).item(),
+        }
+
+        # extra useful scalars you already compute
+        # if hasattr(self, 'game_rewards'):
+        #     log_dict["info/game_reward_mean"] = self.game_rewards.mean().item()
+        #     log_dict["info/game_length_mean"] = self.game_lengths.mean().item()
+
+        # discriminator metrics (already in train_info)
+        # if 'disc_rewards' in train_info:
+        #     disc_r = train_info['disc_rewards']
+        #     log_dict["info/disc_reward_mean"] = disc_r.mean().item()
+        #     log_dict["info/disc_reward_std"] = disc_r.std().item()
+
+        # send to wandb
+        wandb_logger.log(log_dict, step=frame)
+
         return
 
     def _amp_debug(self, info):
