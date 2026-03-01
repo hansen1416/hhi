@@ -53,6 +53,44 @@ class WandbLogger:
             wandb.finish()
             print("wandb_logger: finished")
 
+    def log_checkpoint_to_wandb(self, checkpoint_path: str, epoch: int = None):
+        """Upload the latest .pth as a new version of hhi_film_model with 'latest' alias.
+        
+        This matches exactly the artifact name you use for loading.
+        Every time you save, WandB will create v2, v3, ... and move the 'latest' alias to it.
+        """
+        if wandb.run is None:
+            print("⚠️  WandB not initialized, skipping artifact upload")
+            return
+
+        if not os.path.exists(checkpoint_path):
+            print(f"⚠️  Checkpoint not found: {checkpoint_path}")
+            return
+
+        artifact = wandb.Artifact(
+            name="hhi_film_model",
+            type="model",
+            description="PHC + FiLM (morphology-conditioned) actor-critic for 128 HUMOS body shapes (64 betas × 2 genders)",
+            metadata={
+                "epoch": epoch,
+                "framework": "rl-games + PHCBuilder (FiLM)",
+                "obs_dim": 585,
+                "actor_in_dim": 574,
+                "cond_dim": 11,          # gender + 10 betas
+                "body_shapes": 128,
+                "project_goal": "Convert all non-physical AMASS motions → physically valid motions",
+            }
+        )
+
+        # Add the file with its original name so loading code stays simple
+        artifact.add_file(checkpoint_path, name=os.path.basename(checkpoint_path))
+
+        # This automatically creates a new version and updates the :latest alias
+        wandb.log_artifact(artifact, aliases=["latest"])
+
+        print(f"✅ Uploaded {os.path.basename(checkpoint_path)} → "
+            f"https://wandb.ai/yugoamaryl/hhi/artifacts/model/hhi_film_model (latest)")
+
 
 # global singleton — import and use anywhere
 wandb_logger = WandbLogger()

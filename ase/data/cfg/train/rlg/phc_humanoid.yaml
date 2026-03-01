@@ -41,7 +41,7 @@ params:
       initializer:
         name: default
 
-  load_checkpoint: False
+  load_checkpoint: True
 
   config:
     name: Humanoid

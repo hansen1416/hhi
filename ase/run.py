@@ -9,9 +9,11 @@ from rl_games.common import env_configurations, experiment, vecenv
 from rl_games.common.algo_observer import AlgoObserver
 from rl_games.torch_runner import Runner
 
+import os
 import numpy as np
 import copy
 import torch
+import wandb
 
 from learning import amp_agent
 from learning import amp_players
@@ -32,6 +34,8 @@ from learning import phc_agent
 from learning import phc_players
 from learning import phc_models
 from learning import phc_network_builder
+
+from ase.learning.wandb_logger import wandb_logger
 
 args = None
 cfg = None
@@ -202,6 +206,27 @@ def main():
         cfg_train['params']['config']['amp_obs_demo_buffer_size'] = 20
         cfg_train['params']['config']['amp_replay_buffer_size'] = 20
         cfg_train['params']['config']['num_actors'] = num_actors
+
+    # ------------------------------------------------------------------
+    # WandB artifact loading (replace your 2 local lines with this block)
+    # ------------------------------------------------------------------
+    # Use the exact artifact reference you uploaded:
+
+    # === Wandb logging (hardcoded in wandb_logger.py) ===
+    # use the experiment name that rl_games already uses
+    wandb_logger.init(config_dict=cfg_train['params']['config'])
+
+    artifact = wandb.use_artifact('yugoamaryl/hhi/hhi_film_model:latest')   # or :latest
+
+    # Download the artifact to a local cache folder (WandB handles deduping)
+    artifact_dir = artifact.download()
+
+    pth_files = [f for f in os.listdir(artifact_dir) if f.endswith('.pth')]
+    assert len(pth_files) == 1, "Artifact should contain exactly one .pth"
+    load_path = os.path.join(artifact_dir, pth_files[0])
+
+    cfg_train['params']['load_checkpoint'] = True
+    cfg_train['params']['load_path'] = load_path
 
     cfg_train['params']['seed'] = set_seed(cfg_train['params'].get("seed", -1), cfg_train['params'].get("torch_deterministic", False))
 

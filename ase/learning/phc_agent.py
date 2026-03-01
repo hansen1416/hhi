@@ -6,12 +6,14 @@ from rl_games.common import vecenv
 
 from isaacgym.torch_utils import *
 
+import os
 import time
 from datetime import datetime
 import numpy as np
 from torch import optim
 import torch 
 from torch import nn
+import wandb
 
 import learning.replay_buffer as replay_buffer
 import learning.common_agent as common_agent 
@@ -49,13 +51,6 @@ class PHCAgent(common_agent.CommonAgent):
         AMPAgent additionally creates an RMS normalizer for amp_obs (if enabled).
         """
         super().__init__(base_name, config)
-
-        # === Wandb logging (hardcoded in wandb_logger.py) ===
-        self._wandb_enabled = wandb_logger.enabled
-        if self._wandb_enabled:
-            # use the experiment name that rl_games already uses
-            wandb_logger.init(config_dict=config)
-        # ====================================================
 
         if self._normalize_amp_input:
             self._amp_input_mean_std = RunningMeanStd(self._amp_observation_space.shape).to(self.ppo_device)
@@ -1074,7 +1069,7 @@ class PHCAgent(common_agent.CommonAgent):
         # self.writer.add_scalar('info/disc_reward_mean', disc_reward_mean.item(), frame)
         # self.writer.add_scalar('info/disc_reward_std', disc_reward_std.item(), frame)
 
-        if not self._wandb_enabled or (self.epoch_num % wandb_logger.log_every != 0):
+        if self.epoch_num % wandb_logger.log_every != 0:
             return
 
         log_dict = {

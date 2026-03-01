@@ -20,7 +20,8 @@ from torch import optim
 
 import learning.amp_datasets as amp_datasets
 
-from tensorboardX import SummaryWriter
+# from tensorboardX import SummaryWriter
+from ase.learning.wandb_logger import wandb_logger
 
 class CommonAgent(a2c_continuous.A2CAgent):
     def __init__(self, base_name, config):
@@ -84,6 +85,7 @@ class CommonAgent(a2c_continuous.A2CAgent):
 
     def train(self):
         self.init_tensors()
+        # todo, this reward is not updated/used, maybe remove it.
         self.last_mean_rewards = -100500
         start_time = time.time()
         total_time = 0
@@ -92,7 +94,8 @@ class CommonAgent(a2c_continuous.A2CAgent):
         self.obs = self.env_reset()
         self.curr_frames = self.batch_size_envs
         
-        model_output_file = os.path.join(self.nn_dir, self.config['name'])
+        # model_output_file = os.path.join(self.nn_dir, self.config['name'])
+        model_output_file = os.path.join(self.nn_dir, "hhi_film")
         
         if self.multi_gpu:
             self.hvd.setup_algo(self)
@@ -150,12 +153,14 @@ class CommonAgent(a2c_continuous.A2CAgent):
                         mr = np.mean(mean_rewards) # an average across value heads
                         mr = float(mr.item() if hasattr(mr, "item") else mr)
 
-                        if mr > 30.0:
-                            self.save(model_output_file + '_' + str(epoch_num))
+                        if mr > 0.0:
+                            self.save(model_output_file)
 
-                            if (self._save_intermediate):
-                                int_model_output_file = model_output_file + '_' + str(epoch_num).zfill(8)
-                                self.save(int_model_output_file)
+                            wandb_logger.log_checkpoint_to_wandb(model_output_file + ".pth", epoch=epoch_num)
+
+                            # if (self._save_intermediate):
+                            #     int_model_output_file = model_output_file + '_' + str(epoch_num).zfill(8)
+                            #     self.save(int_model_output_file)
 
                         # custom print log =======================
                         log_parts = [f'fps step: {(curr_frames / scaled_play_time):.1f} fps total: {(curr_frames / scaled_time):.1f}']
@@ -176,6 +181,7 @@ class CommonAgent(a2c_continuous.A2CAgent):
 
                 if epoch_num > self.max_epochs:
                     self.save(model_output_file)
+                    wandb_logger.log_checkpoint_to_wandb(model_output_file + ".pth", epoch=epoch_num)
                     print('MAX EPOCHS NUM!')
                     return self.last_mean_rewards, epoch_num
 

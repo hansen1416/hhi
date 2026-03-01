@@ -568,6 +568,51 @@ class HumanoidPHC(Humanoid):
             self.reward_raw = torch.cat([self.reward_raw, power_reward[:, None]], dim=-1)
 
         return
+    
+    def get_env_state(self):
+        """Called automatically during checkpoint save."""
+        return {
+            "root_states": self._root_states.clone(),
+            "dof_state": self._dof_state.clone(),
+
+            # Motion bookkeeping — this is what was missing
+            "sampled_motion_ids": self._sampled_motion_ids.clone(),
+            "motion_start_times": self._motion_start_times.clone(),
+            "global_offset": self._global_offset.clone(),
+
+            # Episode control
+            "progress_buf": self.progress_buf.clone(),
+            "reset_buf": self.reset_buf.clone(),
+            "terminate_buf": self._terminate_buf.clone(),
+        }
+
+    def set_env_state(self, state):
+        """Called automatically on resume."""
+        if state is None:
+            return
+
+        # Physics
+        if "root_states" in state:
+            self._root_states[:] = state["root_states"]
+        if "dof_state" in state:
+            self._dof_state[:] = state["dof_state"]
+
+        # Motion bookkeeping (safe for old checkpoints)
+        self._sampled_motion_ids[:] = state.get("sampled_motion_ids", self._sampled_motion_ids)
+        self._motion_start_times[:] = state.get("motion_start_times", self._motion_start_times)
+        self._global_offset[:] = state.get("global_offset", self._global_offset)
+
+        self.progress_buf[:] = state.get("progress_buf", self.progress_buf)
+        self.reset_buf[:] = state.get("reset_buf", 0)
+        self._terminate_buf[:] = state.get("terminate_buf", 0)
+
+        # Recompute everything so observations / AMP / task_obs are consistent
+        self._refresh_sim_tensors()
+        self._compute_observations()
+        self._compute_amp_observations()
+        self._init_amp_obs(torch.arange(self.num_envs, device=self.device))
+
+        print(f"✅ Restored full motion state | progress_buf mean = {self.progress_buf.float().mean():.1f}")
 
 #####################################################################
 ###=========================jit functions=========================###
