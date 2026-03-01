@@ -10,6 +10,7 @@ git clone https://github.com/hansen1416/hhi.git
 
 cd /home/hhi/ && mkdir output && chmod -R 777 output/
 
+cd /home/hhi/ && mkdir artifacts && chmod -R 777 artifacts/
 
 scp -i ~/.ssh/id_ed25519 /home/hlz/datasets/humos_results.zip root@202.181.159.138:/home/hhi
 
@@ -37,6 +38,7 @@ hansen1416/phc \
 tail -f /dev/null
 
 docker run -d \
+--name hhi \
 --mount type=bind,source=/home/hhi,target=/home/gymuser/hhi \
 --network=host \
 --gpus=all \
@@ -46,8 +48,14 @@ docker run -d \
 hansen1416/phc \
 tail -f /dev/null
 
-docker exec -it <CONTAINER_ID> /bin/bash
+docker exec -it hhi /bin/bash
 
+
+python -m pip install -U "pydantic>=1.10.8,<2"
+
+python -m pip install -U "wandb==0.22.3"
+
+cd /home/gymuser/hhi/
 
 ---------------
 
