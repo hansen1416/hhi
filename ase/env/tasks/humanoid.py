@@ -290,6 +290,8 @@ class Humanoid(BaseTask):
         motor_efforts = None
 
         humanoid_assets = []
+
+        gener_beta_keys_arr = []
         # load beta into observation ===============
         template_betas = []   # <--- add this
         # load beta into observation ===============
@@ -353,6 +355,7 @@ class Humanoid(BaseTask):
                         raise ValueError("All humanoid assets must share identical actuator effort limits")
 
                 humanoid_assets.append(humanoid_asset)
+                gener_beta_keys_arr.append((gender, beta_key))
         
         # load beta into observation ===============
         # torch.Size([64, 10])
@@ -373,6 +376,8 @@ class Humanoid(BaseTask):
         self._betas_env = torch.zeros(self.num_envs, beta_dim, device=self.device)
         # load beta into observation ===============
 
+        # {0: ('male', 'd6f908ec'), 1: ('female', 'd6f908ec'), 2: ('male', '653185e6'), ...}
+        self.env_id_beta_keys_map = {}
 
         # local batch testing ===============
         if USER == "hlz":
@@ -394,8 +399,11 @@ class Humanoid(BaseTask):
 
                 h_asset = humanoid_assets[asset_idx]
 
+                self.env_id_beta_keys_map[i] = gener_beta_keys_arr[asset_idx]
+
                 # load beta into observation ===============
                 # assign beta for this env when smpl is used
+                # for each env id, there is a beta
                 self._betas_env[i] = self._template_betas[asset_idx]
                 # load beta into observation ===============
 
@@ -411,12 +419,15 @@ class Humanoid(BaseTask):
                 # multi humanoid template change ===============
                 m = len(humanoid_assets)
 
-                h_asset = humanoid_assets[i % m]
+                asset_idx = i % m
+
+                self.env_id_beta_keys_map[i] = gener_beta_keys_arr[asset_idx]
+
+                h_asset = humanoid_assets[asset_idx]
 
                 # load beta into observation ===============
                 # assign beta for this env when smpl is used
-                template_id = i % m
-                self._betas_env[i] = self._template_betas[template_id]
+                self._betas_env[i] = self._template_betas[asset_idx]
                 # load beta into observation ===============
 
                 self._build_env(i, env_ptr, h_asset)

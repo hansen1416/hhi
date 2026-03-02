@@ -342,7 +342,13 @@ class HumanoidPHC(Humanoid):
             self._terminate_buf[env_ids] = 0
 
             num_envs = env_ids.shape[0]
-            self._sampled_motion_ids[env_ids] = self._motion_lib.sample_motions(num_envs)
+
+            gender_beta_key = []
+
+            for eid in env_ids:
+                gender_beta_key.append(self.env_id_beta_keys_map[eid.item()])
+
+            self._sampled_motion_ids[env_ids] = self._motion_lib.sample_motions(num_envs, gender_beta_key)
 
             truncate_time = self.dt * (self._num_amp_obs_steps - 1)
             motion_times = self._motion_lib.sample_time(self._sampled_motion_ids[env_ids], truncate_time=truncate_time)

@@ -417,8 +417,20 @@ class MotionLibHUMOS():
             res = queue.get()
             res_acc.update(res)
 
+        # it's a mapping like `{{('female', '2286da8c'): {0}, ('male', 'd6f908ec'): {1},...` 
+        # for a given (gender, beta_key), you can find the motions
+        self.beta_key_motion_id_mapping = {}
+
         for f in tqdm(range(len(res_acc))):
             motion_file_data, curr_motion = res_acc[f]
+
+            gender_beta_key = (motion_file_data['gender'], motion_file_data['beta_key'])
+
+            if self.beta_key_motion_id_mapping.get(gender_beta_key, None) is None:
+                self.beta_key_motion_id_mapping[gender_beta_key] = set({})
+
+            self.beta_key_motion_id_mapping[gender_beta_key].add(f)
+
             if USE_CACHE:
                 curr_motion = DeviceCache(curr_motion, self._device)
 
@@ -546,11 +558,26 @@ class MotionLibHUMOS():
     #     self._termination_history[self._curr_motion_ids] += termination
     #     # print("termination history: ", self._termination_history[self._curr_motion_ids])
 
-    def sample_motions(self, n):
+    def sample_motions(self, n, gender_beta_keys=None):
         # motion_ids = torch.multinomial(self._sampling_batch_prob, num_samples=n, replacement=True).to(self._device)
 
         # motion_ids = torch.randint(0, 256, (n,), device=self._device, dtype=torch.long)
-        motion_ids = torch.zeros(n, device=self._device, dtype=torch.long)
+
+        if gender_beta_keys is None:
+            motion_ids = torch.zeros(n, device=self._device, dtype=torch.long)
+
+            return motion_ids
+        
+        motion_ids = []
+
+        for gbk in gender_beta_keys:
+            matched_motion_ids = self.beta_key_motion_id_mapping[gbk]
+
+            mid = random.choice(tuple(matched_motion_ids))
+
+            motion_ids.append(mid)
+
+        motion_ids = torch.tensor(motion_ids, device=self._device, dtype=torch.long)
 
         return motion_ids
 
