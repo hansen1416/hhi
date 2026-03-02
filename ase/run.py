@@ -216,17 +216,17 @@ def main():
     # use the experiment name that rl_games already uses
     wandb_logger.init(config_dict=cfg_train['params']['config'])
 
-    artifact = wandb.use_artifact('yugoamaryl/hhi/hhi_film_model:latest')   # or :latest
+    # artifact = wandb.use_artifact('yugoamaryl/hhi/hhi_film_model:latest')   # or :latest
 
-    # Download the artifact to a local cache folder (WandB handles deduping)
-    artifact_dir = artifact.download()
+    # # Download the artifact to a local cache folder (WandB handles deduping)
+    # artifact_dir = artifact.download()
 
-    pth_files = [f for f in os.listdir(artifact_dir) if f.endswith('.pth')]
-    assert len(pth_files) == 1, "Artifact should contain exactly one .pth"
-    load_path = os.path.join(artifact_dir, pth_files[0])
+    # pth_files = [f for f in os.listdir(artifact_dir) if f.endswith('.pth')]
+    # assert len(pth_files) == 1, "Artifact should contain exactly one .pth"
+    # load_path = os.path.join(artifact_dir, pth_files[0])
 
-    cfg_train['params']['load_checkpoint'] = True
-    cfg_train['params']['load_path'] = load_path
+    # cfg_train['params']['load_checkpoint'] = True
+    # cfg_train['params']['load_path'] = load_path
 
     cfg_train['params']['seed'] = set_seed(cfg_train['params'].get("seed", -1), cfg_train['params'].get("torch_deterministic", False))
 
