@@ -559,12 +559,21 @@ class MotionLibHUMOS():
     #     # print("termination history: ", self._termination_history[self._curr_motion_ids])
 
     def sample_motions(self, n, gender_beta_keys=None):
+        """
+        Sample motion IDs.
+        
+        - When gender_beta_keys is provided (training/policy path): 
+          return one motion per env that matches its exact body shape.
+        - When gender_beta_keys=None (demo / AMP real samples path):
+          return uniform random motions across ALL available motions 
+          (this gives the discriminator full diversity across all 128 shapes).
+        """
         # motion_ids = torch.multinomial(self._sampling_batch_prob, num_samples=n, replacement=True).to(self._device)
 
         # motion_ids = torch.randint(0, 256, (n,), device=self._device, dtype=torch.long)
 
         if gender_beta_keys is None:
-            motion_ids = torch.zeros(n, device=self._device, dtype=torch.long)
+            motion_ids = torch.randint(0, self._num_motions, (n,), device=self._device, dtype=torch.long)
 
             return motion_ids
         
