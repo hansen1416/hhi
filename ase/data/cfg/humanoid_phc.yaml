@@ -78,7 +78,7 @@ env:
     restitution: 0.0
 
   power_reward: True
-  power_coefficient: 0.0005
+  power_coefficient: 0.0001
 
 sim:
   substeps: 2
