@@ -153,7 +153,7 @@ class CommonAgent(a2c_continuous.A2CAgent):
                         mr = np.mean(mean_rewards) # an average across value heads
                         mr = float(mr.item() if hasattr(mr, "item") else mr)
 
-                        if mr > 0.0:
+                        if mr > 150.0:
                             self.save(model_output_file)
 
                             wandb_logger.log_checkpoint_to_wandb(model_output_file + ".pth", epoch=epoch_num)
