@@ -11,4 +11,3 @@ tmp*
 wandb/
 artifacts/
 
-ase/upload_checkpoint_to_wandb.py
