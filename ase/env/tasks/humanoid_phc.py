@@ -39,11 +39,22 @@ class HumanoidPHC(Humanoid):
         
         self._amp_obs_demo_buf = None
 
-        self.reward_specs = {"k_pos": 50, "k_rot": 30, "k_vel": 0.1, "k_ang_vel": 0.1, "w_pos": 0.5, "w_rot": 0.3, "w_vel": 0.1, "w_ang_vel": 0.1}
+        # self.reward_specs = {"k_pos": 70, "k_rot": 10, "k_vel": 0.1, "k_ang_vel": 0.1, "w_pos": 0.5, "w_rot": 0.3, "w_vel": 0.1, "w_ang_vel": 0.1}
+
+        self.reward_specs = {
+            "k_pos": 60,      # slightly stricter position
+            "k_rot": 40,
+            "k_vel": 8.0,     # <<< THIS is the key — forces active movement
+            "k_ang_vel": 4.0, # <<< forces turning/following angular motion
+            "w_pos": 0.35,
+            "w_rot": 0.25,
+            "w_vel": 0.25,    # <<< much higher weight on velocity
+            "w_ang_vel": 0.15
+        }
 
         self.power_reward = True
         self.reward_raw = torch.zeros((self.num_envs, 5 if self.power_reward else 4)).to(self.device)
-        self.power_coefficient = cfg["env"].get("power_coefficient", 0.0005)
+        self.power_coefficient = cfg["env"].get("power_coefficient", 0.00005)
 
         # load_motion must happen here
         motion_file = cfg['env']['motion_file'] 
@@ -71,7 +82,9 @@ class HumanoidPHC(Humanoid):
 
         motion_res, motion_res_next, task_obs = self._compute_task_obs_v7()
 
-        ref_body_pos = motion_res["rg_pos"]
+        offset = self._global_offset.unsqueeze(1)# [N,1,3]
+
+        ref_body_pos = motion_res["rg_pos"] + offset
         ref_body_rot = motion_res["rb_rot"]
         ref_body_vel = motion_res["body_vel"]
         ref_body_ang_vel = motion_res["body_ang_vel"]
