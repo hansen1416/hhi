@@ -225,7 +225,6 @@ class Humanoid(BaseTask):
         # gender + betas
         self._num_obs += 11
 
-        # load beta into observation ===============
         if not self._root_height_obs:
             self._num_obs -= 1
         
@@ -296,13 +295,12 @@ class Humanoid(BaseTask):
         template_betas = []   # <--- add this
         # load beta into observation ===============
 
+        # todo, we need to read the available gender,betas from loaded motion, can not relay on all_betas
         for beta_key, betas in self.all_betas.items():
             for gender in ['male', 'female']:
 
                 gender_tensor = encode_gender(gender)
                 curr_gender_beta = torch.cat([gender_tensor.view(1), betas], dim=0)
-
-                template_betas.append(curr_gender_beta)
 
                 af = os.path.join("mjcf", "smpl", f"{gender}_{beta_key}_smpl.xml")
 
@@ -354,7 +352,11 @@ class Humanoid(BaseTask):
                     if not np.allclose(curr_motor_efforts, motor_efforts):
                         raise ValueError("All humanoid assets must share identical actuator effort limits")
 
+                # the gender beta tensor
+                template_betas.append(curr_gender_beta)
+                # humanoid assets
                 humanoid_assets.append(humanoid_asset)
+                # the gender and beta key string
                 gener_beta_keys_arr.append((gender, beta_key))
         
         # load beta into observation ===============
@@ -378,61 +380,27 @@ class Humanoid(BaseTask):
 
         # {0: ('male', 'd6f908ec'), 1: ('female', 'd6f908ec'), 2: ('male', '653185e6'), ...}
         self.env_id_beta_keys_map = {}
+        # if we want to load different btaches, control it by motion files.
+        for i in range(self.num_envs):
+            # create env instance
+            env_ptr = self.gym.create_env(self.sim, lower, upper, num_per_row)
+            # multi humanoid template change ===============
+            m = len(humanoid_assets)
 
-        # local batch testing ===============
-        if USER == "hlz":
-            # change batch id to load differnt batches
-            batch_id = 0
+            asset_idx = i % m
 
-            start = batch_id * self.num_envs
+            self.env_id_beta_keys_map[i] = gener_beta_keys_arr[asset_idx]
 
-            for i in range(self.num_envs):
-                # create env instance
-                env_ptr = self.gym.create_env(self.sim, lower, upper, num_per_row)
-                # multi humanoid template change ===============
-                m = len(humanoid_assets)
+            h_asset = humanoid_assets[asset_idx]
 
-                asset_idx = start + i
+            # load beta into observation ===============
+            # assign beta for this env when smpl is used
+            self._betas_env[i] = self._template_betas[asset_idx]
+            # load beta into observation ===============
 
-                if asset_idx >= m:
-                    asset_idx = asset_idx % m
-
-                h_asset = humanoid_assets[asset_idx]
-
-                self.env_id_beta_keys_map[i] = gener_beta_keys_arr[asset_idx]
-
-                # load beta into observation ===============
-                # assign beta for this env when smpl is used
-                # for each env id, there is a beta
-                self._betas_env[i] = self._template_betas[asset_idx]
-                # load beta into observation ===============
-
-                self._build_env(i, env_ptr, h_asset)
-                # multi humanoid template change ===============
-                self.envs.append(env_ptr)
-            
-        # local batch testing ===============
-        else:
-            for i in range(self.num_envs):
-                # create env instance
-                env_ptr = self.gym.create_env(self.sim, lower, upper, num_per_row)
-                # multi humanoid template change ===============
-                m = len(humanoid_assets)
-
-                asset_idx = i % m
-
-                self.env_id_beta_keys_map[i] = gener_beta_keys_arr[asset_idx]
-
-                h_asset = humanoid_assets[asset_idx]
-
-                # load beta into observation ===============
-                # assign beta for this env when smpl is used
-                self._betas_env[i] = self._template_betas[asset_idx]
-                # load beta into observation ===============
-
-                self._build_env(i, env_ptr, h_asset)
-                # multi humanoid template change ===============
-                self.envs.append(env_ptr)
+            self._build_env(i, env_ptr, h_asset)
+            # multi humanoid template change ===============
+            self.envs.append(env_ptr)
 
         print(f"Loaded {torch_utils.count_unique_tensors_approx_abs(self._betas_env)} unique gender beta combination")
 

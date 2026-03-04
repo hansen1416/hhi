@@ -222,18 +222,6 @@ class HumanoidPHC(Humanoid):
     def _load_motion(self, motion_file):
         assert(self._dof_offsets[-1] == self.num_dof)
 
-        # multi humanoid template change ===============
-        # asset_file = self.cfg["env"]["asset"]["assetFileName"]
-
-        # multi humanoid template change ===============
-        # asset_file_full = os.path.join(self.cfg["env"]["asset"]["assetRoot"], asset_file[0])
-        # sk_tree = SkeletonTree.from_mjcf(asset_file_full)
-
-        # gender_beta = np.zeros(17)
-        # num_envs = self.cfg["env"]["numEnvs"]
-
-        # humanoid_shapes = torch.tensor(np.array([gender_beta] * num_envs)).float().to(self.device)
-
         motion_lib_cfg = EasyDict({
             "motion_file": motion_file,
             "device": torch.device("cpu"),
@@ -250,14 +238,9 @@ class HumanoidPHC(Humanoid):
             "key_body_ids": self._key_body_ids
         })
 
-        # self._motion_lib = MotionLibSMPL(motion_lib_cfg=motion_lib_cfg)
-
-        # self._motion_lib.load_motions(skeleton_trees=[sk_tree], 
-        #             gender_betas=humanoid_shapes.cpu(), 
-        #             random_sample=True)
-
         self._motion_lib = MotionLibHUMOS(motion_lib_cfg=motion_lib_cfg, all_betas=self.all_betas)
 
+        # todo maybe here we return the available gender,beta combinations
         self._motion_lib.load_motions()
 
         return
@@ -343,6 +326,7 @@ class HumanoidPHC(Humanoid):
 
             num_envs = env_ids.shape[0]
 
+            # get the gender,beta by env id
             gender_beta_key = []
 
             for eid in env_ids:

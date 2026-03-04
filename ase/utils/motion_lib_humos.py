@@ -147,7 +147,7 @@ class MotionLibHUMOS():
         self.num_joints = None
 
         self.sk_trees = {'male': {}, 'female': {}}
-
+        # todo here do not read all betas, instead find out all the gender betas combination loaded from the motion files
         for beta_key in all_betas.keys():
             for gender in ['male', 'female']:
 
@@ -361,30 +361,6 @@ class MotionLibHUMOS():
         gc.collect()
 
         total_len = 0.0
-        # self.num_joints = len(skeleton_trees[0].node_names)
-
-        # num_motion_to_load = len(skeleton_trees)
-
-        # if random_sample:
-        #     sample_idxes = torch.multinomial(self._sampling_prob, num_samples=num_motion_to_load, replacement=True).to(self._device)
-        # else:
-        #     sample_idxes = torch.remainder(torch.arange(len(skeleton_trees)) + start_idx, self._num_unique_motions ).to(self._device)
-
-        # # import ipdb; ipdb.set_trace()
-        # self._curr_motion_ids = sample_idxes
-        # # self.one_hot_motions = torch.nn.functional.one_hot(self._curr_motion_ids, num_classes = self._num_unique_motions).to(self._device)  # Testing for obs_v5
-        # self.curr_motion_keys = self._motion_data_keys[sample_idxes]
-        # self._sampling_batch_prob = self._sampling_prob[self._curr_motion_ids] / self._sampling_prob[self._curr_motion_ids].sum()
-
-        # print("\n****************************** Current motion keys ******************************")
-        # print("Sampling motion:", sample_idxes[:30])
-        # if len(self.curr_motion_keys) < 100:
-        #     print(self.curr_motion_keys)
-        # else:
-        #     print(self.curr_motion_keys[:30], ".....")
-        # print("*********************************************************************************\n")
-
-        # motion_data_list = self._motion_data_list[sample_idxes.cpu().numpy()]
 
         motion_data_list = self._motion_data_list
 
