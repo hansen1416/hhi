@@ -4,17 +4,14 @@ Following instruction in `PHC/docs/docker_instruction.MD`
 
 docker pull hansen1416/phc:latest
 
-cd /home/
-
-git clone https://github.com/hansen1416/hhi.git
-
-cd /home/hhi/ && mkdir output && chmod -R 777 output/
-
-cd /home/hhi/ && mkdir artifacts && chmod -R 777 artifacts/
+cd /home && \
+git clone https://github.com/hansen1416/hhi.git && \
+cd /home/hhi && \
+mkdir -p output artifacts && \
+chmod -R 777 output artifacts && \
+apt update && apt install -y zip unzip
 
 scp -i ~/.ssh/id_ed25519 /home/hlz/datasets/humos_results.zip root@202.181.159.138:/home/hhi
-
-apt install zip unzip
 
 
 -----------------------------
