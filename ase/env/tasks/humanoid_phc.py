@@ -45,7 +45,8 @@ class HumanoidPHC(Humanoid):
         self.reward_raw = torch.zeros((self.num_envs, 5 if self.power_reward else 4)).to(self.device)
         self.power_coefficient = cfg["env"].get("power_coefficient", 0.0005)
 
-        motion_file = cfg['env']['motion_file']
+        # load_motion must happen here
+        motion_file = cfg['env']['motion_file'] 
         self._load_motion(motion_file)
 
         # ---- target motion observation ----
@@ -238,9 +239,8 @@ class HumanoidPHC(Humanoid):
             "key_body_ids": self._key_body_ids
         })
 
-        self._motion_lib = MotionLibHUMOS(motion_lib_cfg=motion_lib_cfg, all_betas=self.all_betas)
+        self._motion_lib = MotionLibHUMOS(motion_lib_cfg=motion_lib_cfg, loaded_gender_beta_key=self.loaded_gender_beta_key)
 
-        # todo maybe here we return the available gender,beta combinations
         self._motion_lib.load_motions()
 
         return

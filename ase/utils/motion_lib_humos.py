@@ -129,7 +129,7 @@ class DeviceCache:
     
 class MotionLibHUMOS():
 
-    def __init__(self, motion_lib_cfg, all_betas):
+    def __init__(self, motion_lib_cfg, loaded_gender_beta_key):
         self.m_cfg = motion_lib_cfg
         self._sim_fps = 1/self.m_cfg.get("step_dt", 1/30)
         print("SIM FPS:", self._sim_fps)
@@ -137,7 +137,7 @@ class MotionLibHUMOS():
         
         self.mesh_parsers = None
         
-        self.load_data(self.m_cfg.motion_file,  min_length = self.m_cfg.min_length, im_eval = self.m_cfg.im_eval)
+        self.load_data(self.m_cfg.motion_file, min_length = self.m_cfg.min_length, im_eval = self.m_cfg.im_eval)
         self.setup_constants(fix_height = self.m_cfg.fix_height,  multi_thread = self.m_cfg.multi_thread)
 
         current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -147,16 +147,14 @@ class MotionLibHUMOS():
         self.num_joints = None
 
         self.sk_trees = {'male': {}, 'female': {}}
-        # todo here do not read all betas, instead find out all the gender betas combination loaded from the motion files
-        for beta_key in all_betas.keys():
-            for gender in ['male', 'female']:
+        # loaded_gender_beta_key are read from the motion files,
+        for (gender, beta_key), _ in loaded_gender_beta_key.items():
+            smpl_xml = os.path.join(smpl_xml_folder, f"{gender}_{beta_key}_smpl.xml")
 
-                smpl_xml = os.path.join(smpl_xml_folder, f"{gender}_{beta_key}_smpl.xml")
+            self.sk_trees[gender][beta_key] = SkeletonTree.from_mjcf(smpl_xml)
 
-                self.sk_trees[gender][beta_key] = SkeletonTree.from_mjcf(smpl_xml)
-
-                if self.num_joints is None:
-                    self.num_joints = len(self.sk_trees[gender][beta_key].node_names)
+            if self.num_joints is None:
+                self.num_joints = len(self.sk_trees[gender][beta_key].node_names)
 
         # data_dir = osp.join(current_dir, "..", "data/smpl")
 
@@ -180,7 +178,7 @@ class MotionLibHUMOS():
         
         return
                 
-    def load_data(self, motion_file,  min_length=-1, im_eval = False):
+    def load_data(self, motion_file, min_length=-1, im_eval = False):
         if osp.isfile(motion_file):
             self.mode = MotionlibMode.file.value
             self._motion_data_load = joblib.load(motion_file)
@@ -201,7 +199,7 @@ class MotionLibHUMOS():
 
             # dict_keys(['beta', 'trans_orig', 'pose_aa', 'root_trans_offset', 'pose_quat', 'pose_quat_global', 'gender', 'fps'])
             self._motion_data_list = np.array(list(data_list.values()))
-            # ['with_their_left_hand_th_neutral']
+            # ['000003_female_0f05fd5a']
             self._motion_data_keys = np.array(list(data_list.keys()))
         else:
             # when load folders, they are like:

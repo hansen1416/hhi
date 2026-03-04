@@ -2,6 +2,7 @@ import numpy as np
 import os
 import torch
 import getpass
+import glob
 
 from isaacgym import gymtorch
 from isaacgym import gymapi
@@ -76,8 +77,11 @@ class Humanoid(BaseTask):
         # fetures plugin -------------
 
         self.asset_root = self.cfg["env"]["asset"]["assetRoot"]
-        self.all_betas = torch.load(os.path.join(self.asset_root, self.cfg["env"]["asset"]["assetFileName"]), weights_only=False)
-         
+      
+        # read all gender, betas combinatioms, before `create_sim`
+        # so when `create_envs`, only create humanoid with these gender, betas
+        self.loaded_gender_beta_key = self._get_loaded_gender_beta_key(cfg['env']['motion_file'], self.asset_root, cfg["env"]["asset"]["assetFileName"])
+
         super().__init__(cfg=self.cfg)
         
         self.dt = self.control_freq_inv * sim_params.dt
@@ -146,6 +150,30 @@ class Humanoid(BaseTask):
         self._contact_body_ids = self._build_contact_body_ids_tensor(contact_bodies)
 
         return
+
+    @staticmethod
+    def _get_loaded_gender_beta_key(motion_file, asset_root, all_betas_file):
+
+        all_betas = torch.load(os.path.join(asset_root, all_betas_file), weights_only=False)
+
+        if os.path.isfile(motion_file):
+            motions_files = [motion_file]
+        else:
+            motions_files = glob.glob(os.path.join(motion_file, "*.pkl"))
+
+        loaded_gender_beta_key = {}
+
+        for file_name in motions_files:
+            stem = os.path.splitext(os.path.basename(file_name))[0]
+
+            stem = stem.split("_")
+
+            gender = stem[1]
+            beta_key = stem[2]
+
+            loaded_gender_beta_key[(gender, beta_key)] = all_betas[beta_key]
+
+        return loaded_gender_beta_key
 
     def get_obs_size(self):
         return self._num_obs
@@ -295,70 +323,69 @@ class Humanoid(BaseTask):
         template_betas = []   # <--- add this
         # load beta into observation ===============
 
-        # todo, we need to read the available gender,betas from loaded motion, can not relay on all_betas
-        for beta_key, betas in self.all_betas.items():
-            for gender in ['male', 'female']:
+        # humanoid_template settings are depend on loaded motion files
+        for (gender, beta_key), betas in self.loaded_gender_beta_key.items():
 
-                gender_tensor = encode_gender(gender)
-                curr_gender_beta = torch.cat([gender_tensor.view(1), betas], dim=0)
+            gender_tensor = encode_gender(gender)
+            curr_gender_beta = torch.cat([gender_tensor.view(1), betas], dim=0)
 
-                af = os.path.join("mjcf", "smpl", f"{gender}_{beta_key}_smpl.xml")
+            af = os.path.join("mjcf", "smpl", f"{gender}_{beta_key}_smpl.xml")
 
-                humanoid_asset = self.gym.load_asset(self.sim, self.asset_root, af, asset_options)
+            humanoid_asset = self.gym.load_asset(self.sim, self.asset_root, af, asset_options)
 
-                # load beta into observation ===============
-                actuator_props = self.gym.get_asset_actuator_properties(humanoid_asset)
-                curr_motor_efforts = [prop.motor_effort for prop in actuator_props]
+            # load beta into observation ===============
+            actuator_props = self.gym.get_asset_actuator_properties(humanoid_asset)
+            curr_motor_efforts = [prop.motor_effort for prop in actuator_props]
 
-                right_foot_idx = self.gym.find_asset_rigid_body_index(humanoid_asset, "R_Ankle")
-                left_foot_idx = self.gym.find_asset_rigid_body_index(humanoid_asset, "L_Ankle")
+            right_foot_idx = self.gym.find_asset_rigid_body_index(humanoid_asset, "R_Ankle")
+            left_foot_idx = self.gym.find_asset_rigid_body_index(humanoid_asset, "L_Ankle")
 
-                sensor_pose = gymapi.Transform()
+            sensor_pose = gymapi.Transform()
 
-                self.gym.create_asset_force_sensor(humanoid_asset, right_foot_idx, sensor_pose)
-                self.gym.create_asset_force_sensor(humanoid_asset, left_foot_idx, sensor_pose)
+            self.gym.create_asset_force_sensor(humanoid_asset, right_foot_idx, sensor_pose)
+            self.gym.create_asset_force_sensor(humanoid_asset, left_foot_idx, sensor_pose)
 
-                # sensor_count = self.gym.get_asset_force_sensor_count(humanoid_asset)
-                # if sensors_per_env is None:
-                #     sensors_per_env = sensor_count
-                # elif sensor_count != sensors_per_env:
-                #     raise ValueError("All humanoid assets must expose the same number of force sensors")
+            # sensor_count = self.gym.get_asset_force_sensor_count(humanoid_asset)
+            # if sensors_per_env is None:
+            #     sensors_per_env = sensor_count
+            # elif sensor_count != sensors_per_env:
+            #     raise ValueError("All humanoid assets must expose the same number of force sensors")
 
-                curr_num_bodies = self.gym.get_asset_rigid_body_count(humanoid_asset)
-                curr_num_dof = self.gym.get_asset_dof_count(humanoid_asset)
-                curr_num_joints = self.gym.get_asset_joint_count(humanoid_asset)
+            curr_num_bodies = self.gym.get_asset_rigid_body_count(humanoid_asset)
+            curr_num_dof = self.gym.get_asset_dof_count(humanoid_asset)
+            curr_num_joints = self.gym.get_asset_joint_count(humanoid_asset)
 
-                if motor_efforts is None:
-                    # the smpl type are of same rigid body and joints, so only take info from the first one
+            if motor_efforts is None:
+                # the smpl type are of same rigid body and joints, so only take info from the first one
 
-                    motor_efforts = curr_motor_efforts
+                motor_efforts = curr_motor_efforts
 
-                    self.max_motor_effort = max(motor_efforts)
-                    self.motor_efforts = to_torch(motor_efforts, device=self.device)
+                self.max_motor_effort = max(motor_efforts)
+                self.motor_efforts = to_torch(motor_efforts, device=self.device)
 
-                    self.torso_index = 0
-                    self.num_bodies = curr_num_bodies
-                    self.num_dof = curr_num_dof
-                    self.num_joints = curr_num_joints
+                self.torso_index = 0
+                self.num_bodies = curr_num_bodies
+                self.num_dof = curr_num_dof
+                self.num_joints = curr_num_joints
 
-                else:
+            else:
 
-                    assert curr_num_bodies == self.num_bodies, f"diff num_bodies: {curr_num_bodies}, {self.num_bodies}, {af}, {i}"
-                    assert curr_num_dof == self.num_dof, f"diff num_bodies: {curr_num_dof}, {self.num_dof}"
-                    assert curr_num_joints == self.num_joints, f"diff num_bodies: {curr_num_joints}, {self.num_joints}"
+                assert curr_num_bodies == self.num_bodies, f"diff num_bodies: {curr_num_bodies}, {self.num_bodies}, {af}, {i}"
+                assert curr_num_dof == self.num_dof, f"diff num_bodies: {curr_num_dof}, {self.num_dof}"
+                assert curr_num_joints == self.num_joints, f"diff num_bodies: {curr_num_joints}, {self.num_joints}"
 
-                    if len(curr_motor_efforts) != len(motor_efforts):
-                        raise ValueError("All humanoid assets must expose the same number of actuators")
-                    if not np.allclose(curr_motor_efforts, motor_efforts):
-                        raise ValueError("All humanoid assets must share identical actuator effort limits")
+                if len(curr_motor_efforts) != len(motor_efforts):
+                    raise ValueError("All humanoid assets must expose the same number of actuators")
+                if not np.allclose(curr_motor_efforts, motor_efforts):
+                    raise ValueError("All humanoid assets must share identical actuator effort limits")
 
-                # the gender beta tensor
-                template_betas.append(curr_gender_beta)
-                # humanoid assets
-                humanoid_assets.append(humanoid_asset)
-                # the gender and beta key string
-                gener_beta_keys_arr.append((gender, beta_key))
-        
+            # the gender beta tensor
+            template_betas.append(curr_gender_beta)
+            # humanoid assets
+            humanoid_assets.append(humanoid_asset)
+            # the gender and beta key string
+            gener_beta_keys_arr.append((gender, beta_key))
+
         # load beta into observation ===============
         # torch.Size([64, 10])
         self._template_betas = torch.stack(template_betas, dim=0)    # [T, B]
