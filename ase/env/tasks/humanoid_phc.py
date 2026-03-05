@@ -24,6 +24,7 @@ class HumanoidPHC(Humanoid):
         self._reset_default_env_ids = []
         self._reset_ref_env_ids = []
 
+        self.follow_camera_enabled = True
         self.target_marker_enabled = False
 
         super().__init__(cfg=cfg,
@@ -68,7 +69,7 @@ class HumanoidPHC(Humanoid):
         # PHC-style reference bookkeeping
         self._sampled_motion_ids = torch.zeros(self.num_envs, dtype=torch.long, device=self.device)
         self._motion_start_times = torch.zeros(self.num_envs, dtype=torch.float, device=self.device)
-        self._global_offset = torch.zeros(self.num_envs, 3, dtype=torch.float, device=self.device)
+        # self._global_offset = torch.zeros(self.num_envs, 3, dtype=torch.float, device=self.device)
         # ---- target motion observation ----
 
         return
@@ -83,13 +84,16 @@ class HumanoidPHC(Humanoid):
 
         motion_res, motion_res_next, task_obs = self._compute_task_obs_v7()
 
-        offset = self._global_offset.unsqueeze(1)# [N,1,3]
+        # offset = self._global_offset.unsqueeze(1)# [N,1,3]
 
-        ref_body_pos = motion_res["rg_pos"] + offset
+        # ref_body_pos = motion_res["rg_pos"] + offset
+
+        ref_body_pos = motion_res["rg_pos"]
         ref_body_rot = motion_res["rb_rot"]
         ref_body_vel = motion_res["body_vel"]
         ref_body_ang_vel = motion_res["body_ang_vel"]
 
+        # todo, do we have to offset here
         ref_key_pos_next = motion_res_next["key_pos"]
 
         self._compute_observations(task_obs=task_obs)
@@ -396,7 +400,7 @@ class HumanoidPHC(Humanoid):
         
         # ---- target motion observation ----
         # anchor motion into each env’s spawn location (PHC-style global_offset)
-        global_offset = self._spawn_root_pos[env_ids] - root_pos
+        # global_offset = self._spawn_root_pos[env_ids] - root_pos
         # root_pos = root_pos + global_offset
         # ---- target motion observation ----
 
@@ -417,7 +421,7 @@ class HumanoidPHC(Humanoid):
         # ---- target motion observation ----
         # self._sampled_motion_ids[env_ids] = motion_ids
         # self._motion_start_times[env_ids] = motion_times
-        self._global_offset[env_ids] = global_offset
+        # self._global_offset[env_ids] = global_offset
         # ---- target motion observation ----
         return
 
@@ -543,10 +547,12 @@ class HumanoidPHC(Humanoid):
         motion_res      = self._motion_lib.get_motion_state(motion_ids, t)
         motion_res_next = self._motion_lib.get_motion_state(motion_ids, t + self.dt)
 
-        # anchor into env
-        offset = self._global_offset[env_ids].unsqueeze(1)
-        # motion_res["key_pos"].shape is [num_envs, the number of key bodies, 3]
-        ref_pos = motion_res["key_pos"] + offset
+        # # anchor into env
+        # offset = self._global_offset[env_ids].unsqueeze(1)
+        # # motion_res["key_pos"].shape is [num_envs, the number of key bodies, 3]
+        # ref_pos = motion_res["key_pos"] + offset
+
+        ref_pos = motion_res["key_pos"]
         ref_vel = ( motion_res_next["key_pos"] - motion_res["key_pos"]) / self.dt
 
         task_obs = compute_task_obs_v7_1step(root_pos, root_rot, body_pos, body_vel, ref_pos, ref_vel)
@@ -582,7 +588,7 @@ class HumanoidPHC(Humanoid):
             # Motion bookkeeping — this is what was missing
             "sampled_motion_ids": self._sampled_motion_ids.clone(),
             "motion_start_times": self._motion_start_times.clone(),
-            "global_offset": self._global_offset.clone(),
+            # "global_offset": self._global_offset.clone(),
 
             # Episode control
             "progress_buf": self.progress_buf.clone(),
@@ -604,7 +610,7 @@ class HumanoidPHC(Humanoid):
         # Motion bookkeeping (safe for old checkpoints)
         self._sampled_motion_ids[:] = state.get("sampled_motion_ids", self._sampled_motion_ids)
         self._motion_start_times[:] = state.get("motion_start_times", self._motion_start_times)
-        self._global_offset[:] = state.get("global_offset", self._global_offset)
+        # self._global_offset[:] = state.get("global_offset", self._global_offset)
 
         self.progress_buf[:] = state.get("progress_buf", self.progress_buf)
         self.reset_buf[:] = state.get("reset_buf", 0)
