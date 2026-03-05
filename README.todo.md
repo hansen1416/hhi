@@ -1,7 +1,4 @@
-- load/save state
-- load ckpt from wandb
-- save ckpt to wandb
-- update docker
+- improve the log, more details
 
 
 - apply the height offset!, choose to use phc/humos 

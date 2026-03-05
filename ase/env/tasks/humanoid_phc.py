@@ -39,25 +39,26 @@ class HumanoidPHC(Humanoid):
         
         self._amp_obs_demo_buf = None
 
-        # self.reward_specs = {"k_pos": 70, "k_rot": 10, "k_vel": 0.1, "k_ang_vel": 0.1, "w_pos": 0.5, "w_rot": 0.3, "w_vel": 0.1, "w_ang_vel": 0.1}
+        self.reward_specs = {"k_pos": 100, "k_rot": 10, "k_vel": 0.1, "k_ang_vel": 0.1, "w_pos": 0.5, "w_rot": 0.3, "w_vel": 0.1, "w_ang_vel": 0.1}
 
-        self.reward_specs = {
-            "k_pos": 60,      # slightly stricter position
-            "k_rot": 40,
-            "k_vel": 8.0,     # <<< THIS is the key — forces active movement
-            "k_ang_vel": 4.0, # <<< forces turning/following angular motion
-            "w_pos": 0.35,
-            "w_rot": 0.25,
-            "w_vel": 0.25,    # <<< much higher weight on velocity
-            "w_ang_vel": 0.15
-        }
+        # self.reward_specs = {
+        #     "k_pos": 60,      # slightly stricter position
+        #     "k_rot": 40,
+        #     "k_vel": 8.0,     # <<< THIS is the key — forces active movement
+        #     "k_ang_vel": 4.0, # <<< forces turning/following angular motion
+        #     "w_pos": 0.35,
+        #     "w_rot": 0.25,
+        #     "w_vel": 0.25,    # <<< much higher weight on velocity
+        #     "w_ang_vel": 0.15
+        # }
 
         self.power_reward = True
+        # self.reward_raw is [num_envs, [r_body_pos, r_body_rot, r_vel, r_ang_vel, power_reward]], and its for debug purpose
         self.reward_raw = torch.zeros((self.num_envs, 5 if self.power_reward else 4)).to(self.device)
         self.power_coefficient = cfg["env"].get("power_coefficient", 0.00005)
 
         # load_motion must happen here
-        motion_file = cfg['env']['motion_file'] 
+        motion_file = cfg['env']['motion_file']
         self._load_motion(motion_file)
 
         # ---- target motion observation ----
