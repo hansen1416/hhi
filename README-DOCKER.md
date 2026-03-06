@@ -48,8 +48,7 @@ tail -f /dev/null
 docker exec -it hhi /bin/bash
 
 
-python -m pip install -U "pydantic>=1.10.8,<2"
-
+python -m pip install -U "pydantic>=1.10.8,<2" && \
 python -m pip install -U "wandb==0.22.3"
 
 cd /home/gymuser/hhi/
