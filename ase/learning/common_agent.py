@@ -85,8 +85,7 @@ class CommonAgent(a2c_continuous.A2CAgent):
 
     def train(self):
         self.init_tensors()
-        # todo, this reward is not updated/used, maybe remove it.
-        self.last_mean_rewards = -100500
+
         start_time = time.time()
         total_time = 0
         rep_count = 0
@@ -124,10 +123,24 @@ class CommonAgent(a2c_continuous.A2CAgent):
                 #     fps_total = curr_frames / scaled_time
                     # print(f'fps step: {fps_step:.1f} fps total: {fps_total:.1f}')
 
-                self.writer.add_scalar('performance/total_fps', curr_frames / scaled_time, frame)
-                self.writer.add_scalar('performance/step_fps', curr_frames / scaled_play_time, frame)
-                self.writer.add_scalar('info/epochs', epoch_num, frame)
-                self._log_train_info(train_info, frame)
+                # Enrich train_info with metrics for logging in _log_train_info
+                train_info['curr_frames'] = curr_frames
+                train_info['scaled_time'] = scaled_time  # Per-epoch total time
+                train_info['scaled_play_time'] = scaled_play_time
+                train_info['epoch_num'] = epoch_num
+                train_info['cumulative_time'] = total_time  # Cumulative across epochs
+                train_info['frame'] = frame  # Though frame is passed separately
+
+                if hasattr(self.vec_env.env.task, "reward_raw"):
+                    
+                    # reward_raw is [num_envs, [r_body_pos, r_body_rot, r_vel, r_ang_vel, power_reward]]
+                    # Compute means over envs for each component (to avoid logging full tensor)
+                    mean_raw = self.vec_env.env.task.reward_raw.mean(dim=0).cpu().numpy()  # Shape [5]
+                    train_info['mean_reward_pos'] = mean_raw[0]
+                    train_info['mean_reward_rot'] = mean_raw[1]
+                    train_info['mean_reward_vel'] = mean_raw[2]
+                    train_info['mean_reward_ang_vel'] = mean_raw[3]
+                    train_info['mean_reward_power'] = mean_raw[4]
 
                 self.algo_observer.after_print_stats(frame, epoch_num, total_time)
                 
@@ -135,16 +148,13 @@ class CommonAgent(a2c_continuous.A2CAgent):
                     mean_rewards = self._get_mean_rewards()
                     mean_lengths = self.game_lengths.get_mean()
 
-                    for i in range(self.value_size):
-                        self.writer.add_scalar('rewards{0}/frame'.format(i), mean_rewards[i], frame)
-                        self.writer.add_scalar('rewards{0}/iter'.format(i), mean_rewards[i], epoch_num)
-                        self.writer.add_scalar('rewards{0}/time'.format(i), mean_rewards[i], total_time)
-
-                    self.writer.add_scalar('episode_lengths/frame', mean_lengths, frame)
-                    self.writer.add_scalar('episode_lengths/iter', mean_lengths, epoch_num)
+                    train_info['mean_rewards'] = mean_rewards  # Numpy array or tensor; handle in logging
+                    train_info['mean_lengths'] = mean_lengths
 
                     if self.has_self_play_config:
                         self.self_play_manager.update(self)
+
+                self._log_train_info(train_info, frame)
 
                 if self.save_freq > 0 and self.game_rewards.current_size > 0:
                     if (epoch_num % self.save_freq == 0):
@@ -153,7 +163,7 @@ class CommonAgent(a2c_continuous.A2CAgent):
                         mr = np.mean(mean_rewards) # an average across value heads
                         mr = float(mr.item() if hasattr(mr, "item") else mr)
 
-                        if mr > 150.0:
+                        if mr > 50.0:
                             self.save(model_output_file)
 
                             wandb_logger.log_checkpoint_to_wandb(model_output_file + ".pth", epoch=epoch_num)
@@ -183,7 +193,7 @@ class CommonAgent(a2c_continuous.A2CAgent):
                     self.save(model_output_file)
                     wandb_logger.log_checkpoint_to_wandb(model_output_file + ".pth", epoch=epoch_num)
                     print('MAX EPOCHS NUM!')
-                    return self.last_mean_rewards, epoch_num
+                    return epoch_num
 
                 update_time = 0
         return
@@ -195,7 +205,6 @@ class CommonAgent(a2c_continuous.A2CAgent):
             self.central_value_net.load_state_dict(weights['assymetric_vf_nets'])
         self.optimizer.load_state_dict(weights['optimizer'])
         self.frame = weights.get('frame', 0)
-        self.last_mean_rewards = weights.get('last_mean_rewards', -100500)
 
         if (hasattr(self, 'vec_env')):
             env_state = weights.get('env_state', None)
@@ -583,16 +592,8 @@ class CommonAgent(a2c_continuous.A2CAgent):
         return
 
     def _log_train_info(self, train_info, frame):
-        self.writer.add_scalar('performance/update_time', train_info['update_time'], frame)
-        self.writer.add_scalar('performance/play_time', train_info['play_time'], frame)
-        self.writer.add_scalar('losses/a_loss', torch_ext.mean_list(train_info['actor_loss']).item(), frame)
-        self.writer.add_scalar('losses/c_loss', torch_ext.mean_list(train_info['critic_loss']).item(), frame)
-        
-        self.writer.add_scalar('losses/bounds_loss', torch_ext.mean_list(train_info['b_loss']).item(), frame)
-        self.writer.add_scalar('losses/entropy', torch_ext.mean_list(train_info['entropy']).item(), frame)
-        self.writer.add_scalar('info/last_lr', train_info['last_lr'][-1] * train_info['lr_mul'][-1], frame)
-        self.writer.add_scalar('info/lr_mul', train_info['lr_mul'][-1], frame)
-        self.writer.add_scalar('info/e_clip', self.e_clip * train_info['lr_mul'][-1], frame)
-        self.writer.add_scalar('info/clip_frac', torch_ext.mean_list(train_info['actor_clip_frac']).item(), frame)
-        self.writer.add_scalar('info/kl', torch_ext.mean_list(train_info['kl']).item(), frame)
-        return
+        """
+        Stub: Log all training info (performance, rewards, etc.). Override in subclasses.
+        """
+        # Base implementation: Do nothing or add basic prints/WandB if needed
+        pass

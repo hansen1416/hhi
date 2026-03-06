@@ -1049,54 +1049,119 @@ class PHCAgent(common_agent.CommonAgent):
         super()._record_train_batch_info(batch_dict, train_info)
         train_info['disc_rewards'] = batch_dict['disc_rewards']
         return
-
+    
     def _log_train_info(self, train_info, frame):
-        """
-        TensorBoard logging for discriminator-related metrics.
-        """
+        # Call super if needed (though base is stub)
         super()._log_train_info(train_info, frame)
 
-        # self.writer.add_scalar('losses/disc_loss', torch_ext.mean_list(train_info['disc_loss']).item(), frame)
+        # Compute and log FPS (previously in train())
+        if 'curr_frames' in train_info and 'scaled_time' in train_info:
+            total_fps = train_info['curr_frames'] / train_info['scaled_time']
+            step_fps = train_info['curr_frames'] / train_info['scaled_play_time']
+            # Log to TensorBoard (if still using) or WandB
+            # self.writer.add_scalar('performance/total_fps', total_fps, frame)  # Uncomment if keeping TB
+            # self.writer.add_scalar('performance/step_fps', step_fps, frame)
+            wandb_logger.log({'performance/total_fps': total_fps, 'performance/step_fps': step_fps}, step=frame)
 
-        # self.writer.add_scalar('info/disc_agent_acc', torch_ext.mean_list(train_info['disc_agent_acc']).item(), frame)
-        # self.writer.add_scalar('info/disc_demo_acc', torch_ext.mean_list(train_info['disc_demo_acc']).item(), frame)
-        # self.writer.add_scalar('info/disc_agent_logit', torch_ext.mean_list(train_info['disc_agent_logit']).item(), frame)
-        # self.writer.add_scalar('info/disc_demo_logit', torch_ext.mean_list(train_info['disc_demo_logit']).item(), frame)
-        # self.writer.add_scalar('info/disc_grad_penalty', torch_ext.mean_list(train_info['disc_grad_penalty']).item(), frame)
-        # self.writer.add_scalar('info/disc_logit_loss', torch_ext.mean_list(train_info['disc_logit_loss']).item(), frame)
+        # Log epochs
+        if 'epoch_num' in train_info:
+            # self.writer.add_scalar('info/epochs', train_info['epoch_num'], frame)
+            wandb_logger.log({'info/epochs': train_info['epoch_num']}, step=frame)
 
-        # disc_reward_std, disc_reward_mean = torch.std_mean(train_info['disc_rewards'])
-        # self.writer.add_scalar('info/disc_reward_mean', disc_reward_mean.item(), frame)
-        # self.writer.add_scalar('info/disc_reward_std', disc_reward_std.item(), frame)
+        # Log rewards and lengths if available
+        if 'mean_rewards' in train_info and 'mean_lengths' in train_info:
+            mean_rewards = train_info['mean_rewards']
+            mean_lengths = train_info['mean_lengths']
 
-        if self.epoch_num % wandb_logger.log_every != 0:
-            return
+            for i in range(self.value_size):
+                wandb_logger.log({
+                    f'rewards{i}/frame': mean_rewards[i],
+                    f'rewards{i}/iter': mean_rewards[i],
+                    f'rewards{i}/time': mean_rewards[i]
+                }, step=frame)
 
-        log_dict = {
-            "losses/disc_loss": torch_ext.mean_list(train_info["disc_loss"]).item(),
-            "info/disc_agent_acc": torch_ext.mean_list(train_info["disc_agent_acc"]).item(),
-            "info/disc_demo_acc": torch_ext.mean_list(train_info["disc_demo_acc"]).item(),
-            "info/disc_agent_logit": torch_ext.mean_list(train_info["disc_agent_logit"]).item(),
-            "info/disc_demo_logit": torch_ext.mean_list(train_info["disc_demo_logit"]).item(),
-            "info/disc_grad_penalty": torch_ext.mean_list(train_info["disc_grad_penalty"]).item(),
-            "info/disc_logit_loss": torch_ext.mean_list(train_info["disc_logit_loss"]).item(),
-        }
+            # self.writer.add_scalar('episode_lengths/frame', mean_lengths, frame)
+            # self.writer.add_scalar('episode_lengths/iter', mean_lengths, epoch_num)
+            wandb_logger.log({
+                'episode_lengths/frame': mean_lengths,
+                'episode_lengths/iter': mean_lengths
+            }, step=frame)
 
-        # extra useful scalars you already compute
-        # if hasattr(self, 'game_rewards'):
-        #     log_dict["info/game_reward_mean"] = self.game_rewards.mean().item()
-        #     log_dict["info/game_length_mean"] = self.game_lengths.mean().item()
+        # Add your detailed reward breakdowns here (from previous suggestion)
+        # Assuming you added 'mean_reward_pos', etc., to train_info in play_steps/train_epoch
+        if 'mean_reward_pos' in train_info:
+            # self.writer.add_scalar('rewards/pos', train_info['mean_reward_pos'], frame)
+            wandb_logger.log({
+                'rewards/mean_reward_pos': train_info['mean_reward_pos'],
+                'rewards/mean_reward_pos': train_info['mean_reward_pos'],
+                'rewards/mean_reward_rot': train_info['mean_reward_rot'],
+                'rewards/mean_reward_vel': train_info['mean_reward_vel'],
+                'rewards/mean_reward_ang_vel': train_info['mean_reward_ang_vel'],
+                'rewards/mean_reward_power': train_info['mean_reward_power']
+            }, step=frame)
 
-        # discriminator metrics (already in train_info)
-        # if 'disc_rewards' in train_info:
-        #     disc_r = train_info['disc_rewards']
-        #     log_dict["info/disc_reward_mean"] = disc_r.mean().item()
-        #     log_dict["info/disc_reward_std"] = disc_r.std().item()
+        # # Custom console print (moved here)
+        # if 'mean_rewards' in train_info and 'mean_lengths' in train_info:
+        #     log_parts = [f'fps step: {step_fps:.1f} fps total: {total_fps:.1f}']
+        #     for i in range(self.value_size):
+        #         log_parts.append(
+        #             f"rewards{i}/frame={mean_rewards[i]:.4f}, rewards{i}/iter={mean_rewards[i]:.4f}, rewards{i}/time={mean_rewards[i]:.4f}"
+        #         )
+        #     log_parts.append(f"episode_lengths/frame={mean_lengths:.4f}")
+        #     log_parts.append(f"episode_lengths/iter={mean_lengths:.4f}")
+        #     log_str = " | ".join(log_parts)
+        #     print(log_str)
 
-        # send to wandb
-        wandb_logger.log(log_dict, step=frame)
+        # Add any AMP/PHC-specific logging (e.g., disc_loss, amp_rewards) from train_info
+        # Example: if 'disc_loss' in train_info: wandb.log({'losses/disc_loss': train_info['disc_loss']}, step=frame)
 
-        return
+    # def _log_train_info(self, train_info, frame):
+    #     """
+    #     TensorBoard logging for discriminator-related metrics.
+    #     """
+    #     super()._log_train_info(train_info, frame)
+
+    #     # self.writer.add_scalar('losses/disc_loss', torch_ext.mean_list(train_info['disc_loss']).item(), frame)
+
+    #     # self.writer.add_scalar('info/disc_agent_acc', torch_ext.mean_list(train_info['disc_agent_acc']).item(), frame)
+    #     # self.writer.add_scalar('info/disc_demo_acc', torch_ext.mean_list(train_info['disc_demo_acc']).item(), frame)
+    #     # self.writer.add_scalar('info/disc_agent_logit', torch_ext.mean_list(train_info['disc_agent_logit']).item(), frame)
+    #     # self.writer.add_scalar('info/disc_demo_logit', torch_ext.mean_list(train_info['disc_demo_logit']).item(), frame)
+    #     # self.writer.add_scalar('info/disc_grad_penalty', torch_ext.mean_list(train_info['disc_grad_penalty']).item(), frame)
+    #     # self.writer.add_scalar('info/disc_logit_loss', torch_ext.mean_list(train_info['disc_logit_loss']).item(), frame)
+
+    #     # disc_reward_std, disc_reward_mean = torch.std_mean(train_info['disc_rewards'])
+    #     # self.writer.add_scalar('info/disc_reward_mean', disc_reward_mean.item(), frame)
+    #     # self.writer.add_scalar('info/disc_reward_std', disc_reward_std.item(), frame)
+
+    #     if self.epoch_num % wandb_logger.log_every != 0:
+    #         return
+
+    #     log_dict = {
+    #         "losses/disc_loss": torch_ext.mean_list(train_info["disc_loss"]).item(),
+    #         "info/disc_agent_acc": torch_ext.mean_list(train_info["disc_agent_acc"]).item(),
+    #         "info/disc_demo_acc": torch_ext.mean_list(train_info["disc_demo_acc"]).item(),
+    #         "info/disc_agent_logit": torch_ext.mean_list(train_info["disc_agent_logit"]).item(),
+    #         "info/disc_demo_logit": torch_ext.mean_list(train_info["disc_demo_logit"]).item(),
+    #         "info/disc_grad_penalty": torch_ext.mean_list(train_info["disc_grad_penalty"]).item(),
+    #         "info/disc_logit_loss": torch_ext.mean_list(train_info["disc_logit_loss"]).item(),
+    #     }
+
+    #     # extra useful scalars you already compute
+    #     # if hasattr(self, 'game_rewards'):
+    #     #     log_dict["info/game_reward_mean"] = self.game_rewards.mean().item()
+    #     #     log_dict["info/game_length_mean"] = self.game_lengths.mean().item()
+
+    #     # discriminator metrics (already in train_info)
+    #     # if 'disc_rewards' in train_info:
+    #     #     disc_r = train_info['disc_rewards']
+    #     #     log_dict["info/disc_reward_mean"] = disc_r.mean().item()
+    #     #     log_dict["info/disc_reward_std"] = disc_r.std().item()
+
+    #     # send to wandb
+    #     wandb_logger.log(log_dict, step=frame)
+
+    #     return
 
     def _amp_debug(self, info):
         with torch.no_grad():
