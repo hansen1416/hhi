@@ -125,8 +125,8 @@ class DeviceCache:
         out = getattr(self.obj, string)
         return out
 
-
-    
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+SMPL_DATA_DIR = osp.join(CURRENT_DIR, "..", "data/smpl_model")
 class MotionLibHUMOS():
 
     def __init__(self, motion_lib_cfg, loaded_gender_beta_key):
@@ -140,9 +140,7 @@ class MotionLibHUMOS():
         self.load_data(self.m_cfg.motion_file, min_length = self.m_cfg.min_length, im_eval = self.m_cfg.im_eval)
         self.setup_constants(fix_height = self.m_cfg.fix_height,  multi_thread = self.m_cfg.multi_thread)
 
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-
-        smpl_xml_folder = osp.join(current_dir, "..", "data", "assets", "mjcf", "smpl")
+        smpl_xml_folder = osp.join(CURRENT_DIR, "..", "data", "assets", "mjcf", "smpl")
 
         self.num_joints = None
 
@@ -155,26 +153,6 @@ class MotionLibHUMOS():
 
             if self.num_joints is None:
                 self.num_joints = len(self.sk_trees[gender][beta_key].node_names)
-
-        # data_dir = osp.join(current_dir, "..", "data/smpl")
-
-        # if osp.exists(data_dir):
-        #     if motion_lib_cfg.smpl_type == "smpl":
-        #         smpl_parser_n = SMPL_Parser(model_path=data_dir, gender="neutral")
-        #         smpl_parser_m = SMPL_Parser(model_path=data_dir, gender="male")
-        #         smpl_parser_f = SMPL_Parser(model_path=data_dir, gender="female")
-        #     elif motion_lib_cfg.smpl_type == "smplh":
-        #         smpl_parser_n = SMPLH_Parser(model_path=data_dir, gender="neutral")
-        #         smpl_parser_m = SMPLH_Parser(model_path=data_dir, gender="male")
-        #         smpl_parser_f = SMPLH_Parser(model_path=data_dir, gender="female")
-        #     elif motion_lib_cfg.smpl_type == "smplx":
-        #         smpl_parser_n = SMPLX_Parser(model_path=data_dir, gender="neutral", use_pca=False, create_transl=False, flat_hand_mean = True, num_betas=20)
-        #         smpl_parser_m = SMPLX_Parser(model_path=data_dir, gender="male", use_pca=False, create_transl=False, flat_hand_mean = True, num_betas=20)
-        #         smpl_parser_f = SMPLX_Parser(model_path=data_dir, gender="female", use_pca=False, create_transl=False, flat_hand_mean = True, num_betas=20)
-        #     self.mesh_parsers = {0: smpl_parser_n, 1: smpl_parser_m, -1: smpl_parser_f}
-        # else:
-        #     print("SMPL models not found, set mesh_parsers to None")
-        #     self.mesh_parsers = None
         
         return
                 
@@ -226,7 +204,7 @@ class MotionLibHUMOS():
         
         
     @staticmethod
-    def load_motion_with_skeleton(ids, motion_data_list, skeleton_trees, mesh_parsers, config, queue, pid):
+    def load_motion_with_skeleton(ids, motion_data_list, skeleton_trees, config, queue, pid):
         # ZL: loading motion with the specified skeleton. Perfoming forward kinematics to get the joint positions
         max_len = config.max_length
         fix_height = config.fix_height
@@ -265,11 +243,6 @@ class MotionLibHUMOS():
 
             trans = curr_file['trans_orig'].clone()[start:end]
 
-            # todo, find the proper height offset for each humanoid
-            # the up axis is z, this offset_height is calculated during saving humos results 
-            # trans[:, 2] += (curr_file['offset_height'] + 0.15)
-            trans[:, 2] += 0.1
-
             pose_aa = to_torch(curr_file['pose_aa'][start:end])
             pose_quat_global = curr_file['pose_quat_global'][start:end]
             
@@ -292,10 +265,11 @@ class MotionLibHUMOS():
             ##### ZL: randomize the heading ######
 
             # if not mesh_parsers is None:
-            #     # todo, new fix height logic
-            #     trans, trans_fix = MotionLibHUMOS.fix_trans_height(pose_aa, trans, curr_gender_beta, mesh_parsers, fix_height_mode = fix_height)
-            # else:
-            #     trans_fix = 0
+            if True:
+                # todo, new fix height logic
+                trans, trans_fix = MotionLibHUMOS.fix_trans_height(pose_aa, trans, curr_gender_beta, fix_height_mode = fix_height)
+            else:
+                trans_fix = 0
 
             pose_quat_global = to_torch(pose_quat_global)
             sk_state = SkeletonState.from_rotation_and_root_translation(sk_tree, pose_quat_global, trans, is_local=False)
@@ -312,34 +286,44 @@ class MotionLibHUMOS():
         else:
             return res
 
-    # @staticmethod
-    # def fix_trans_height(pose_aa, trans, curr_gender_betas, mesh_parsers, fix_height_mode):
-    #     if fix_height_mode == FixHeightMode.no_fix.value:
-    #         return trans, 0
+    @staticmethod
+    def fix_trans_height(pose_aa, trans, curr_gender_betas, fix_height_mode):
+        if fix_height_mode == FixHeightMode.no_fix.value:
+            return trans, 0
         
-    #     with torch.no_grad():
-    #         frame_check = 30
-    #         gender = curr_gender_betas[0]
-    #         betas = curr_gender_betas[1:]
-    #         mesh_parser = mesh_parsers[gender.item()]
-    #         height_tolorance = 0.0
-    #         vertices_curr, joints_curr = mesh_parser.get_joints_verts(pose_aa[:frame_check], betas[None,], trans[:frame_check])
-            
-    #         offset = joints_curr[:, 0] - trans[:frame_check] # account for SMPL root offset. since the root trans we pass in has been processed, we have to "add it back".
+        with torch.no_grad():
+            frame_check = 10
+            gender = curr_gender_betas[0]
+            betas = curr_gender_betas[1:]
+            # mesh_parser = mesh_parsers[gender.item()]
 
-    #         if fix_height_mode == FixHeightMode.ankle_fix.value:
-    #             assignment_indexes = mesh_parser.lbs_weights.argmax(axis=1)
-    #             pick = (((assignment_indexes != mesh_parser.joint_names.index("L_Toe")).int() + (assignment_indexes != mesh_parser.joint_names.index("R_Toe")).int() 
-    #                 + (assignment_indexes != mesh_parser.joint_names.index("R_Hand")).int() + + (assignment_indexes != mesh_parser.joint_names.index("L_Hand")).int()) == 4).nonzero().squeeze()
-    #             diff_fix = ((vertices_curr[:, pick] - offset[:, None])[:frame_check, ..., -1].min(dim=-1).values - height_tolorance).min()  # Only acount the first 30 frames, which usually is a calibration phase.
-    #         elif fix_height_mode == FixHeightMode.full_fix.value:
+            gender_str = ''
+
+            if int(gender.item()) == -1:
+                gender_str = 'female'
+            elif int(gender.item()) == 1:
+                gender_str = 'male'
+
+            # todo why there is still some of them with wrong offset height?
+            # maybe we should use the rigid body position instead of the SMPL mesh, they are not quit the same, are they?
+            mesh_parser = SMPL_Parser(model_path=SMPL_DATA_DIR, gender=gender_str, betas=betas)
+
+            height_tolorance = 0.0
+            vertices_curr, joints_curr = mesh_parser.get_joints_verts(pose_aa[:frame_check], betas[None,], trans[:frame_check])
+            
+            offset = joints_curr[:, 0] - trans[:frame_check] # account for SMPL root offset. since the root trans we pass in has been processed, we have to "add it back".
+
+            if fix_height_mode == FixHeightMode.ankle_fix.value:
+                assignment_indexes = mesh_parser.lbs_weights.argmax(axis=1)
+                pick = (((assignment_indexes != mesh_parser.joint_names.index("L_Toe")).int() + (assignment_indexes != mesh_parser.joint_names.index("R_Toe")).int() 
+                    + (assignment_indexes != mesh_parser.joint_names.index("R_Hand")).int() + + (assignment_indexes != mesh_parser.joint_names.index("L_Hand")).int()) == 4).nonzero().squeeze()
+                diff_fix = ((vertices_curr[:, pick] - offset[:, None])[:frame_check, ..., -1].min(dim=-1).values - height_tolorance).min()  # Only acount the first 30 frames, which usually is a calibration phase.
+            elif fix_height_mode == FixHeightMode.full_fix.value:
                 
-    #             diff_fix = ((vertices_curr - offset[:, None])[:frame_check, ..., -1].min(dim=-1).values - height_tolorance).min()  # Only acount the first 30 frames, which usually is a calibration phase.
+                diff_fix = ((vertices_curr - offset[:, None])[:frame_check, ..., -1].min(dim=-1).values - height_tolorance).min()  # Only acount the first 30 frames, which usually is a calibration phase.
             
-            
-            
-    #         trans[..., -1] -= diff_fix
-    #         return trans, diff_fix
+            trans[..., -1] -= diff_fix
+            return trans, diff_fix
 
     def load_motions(self):
         # load motion load the same number of motions as there are skeletons (humanoids)
@@ -379,7 +363,7 @@ class MotionLibHUMOS():
         chunk = np.ceil(len(jobs) / num_jobs).astype(int)
         ids = np.arange(len(jobs))
 
-        jobs = [(ids[i:i + chunk], jobs[i:i + chunk], self.sk_trees, self.mesh_parsers, self.m_cfg) for i in range(0, len(jobs), chunk)]
+        jobs = [(ids[i:i + chunk], jobs[i:i + chunk], self.sk_trees, self.m_cfg) for i in range(0, len(jobs), chunk)]
         job_args = [jobs[i] for i in range(len(jobs))]
         for i in range(1, len(jobs)):
             worker_args = (*job_args[i], queue, i)
