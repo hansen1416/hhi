@@ -1,11 +1,6 @@
-- improve the log, more details
-
-
 - apply the height offset!, choose to use phc/humos 
 
 - amass_occlusion in `scripts/data_process/convert_amass_data.py` looks good
-
-
 
 * Your pose data contains joint rotations (degrees of freedom pose) and their temporal derivatives (degrees of freedom velocity).
 * Given the frame rate and root position/orientation, the full motion trajectory can be reconstructed.
