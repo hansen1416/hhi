@@ -292,7 +292,7 @@ class MotionLibHUMOS():
             return trans, 0
         
         with torch.no_grad():
-            frame_check = 10
+            frame_check = 2
             gender = curr_gender_betas[0]
             betas = curr_gender_betas[1:]
             # mesh_parser = mesh_parsers[gender.item()]
