@@ -308,7 +308,7 @@ class MotionLibHUMOS():
             # maybe we should use the rigid body position instead of the SMPL mesh, they are not quit the same, are they?
             mesh_parser = SMPL_Parser(model_path=SMPL_DATA_DIR, gender=gender_str, betas=betas)
 
-            height_tolorance = 0.0
+            height_tolorance = 0.02
             vertices_curr, joints_curr = mesh_parser.get_joints_verts(pose_aa[:frame_check], betas[None,], trans[:frame_check])
             
             offset = joints_curr[:, 0] - trans[:frame_check] # account for SMPL root offset. since the root trans we pass in has been processed, we have to "add it back".
