@@ -110,7 +110,7 @@ class HumanoidPHC(Humanoid):
         self._update_hist_amp_obs()
         self._compute_amp_observations()
 
-        # todo0310, add shape to amp_obs
+        # todo-disc-shape-condition, add shape to amp_obs
         amp_obs_flat = self._amp_obs_buf.view(-1, self.get_num_amp_obs())
 
         self.extras["amp_obs"] = amp_obs_flat
@@ -126,7 +126,7 @@ class HumanoidPHC(Humanoid):
 
     def fetch_amp_obs_demo(self, num_samples):
         """
-        # todo0310, add shape to amp_obs_demo
+        # todo-disc-shape-condition, add shape to amp_obs_demo
         """
 
         if (self._amp_obs_demo_buf is None):
@@ -222,7 +222,7 @@ class HumanoidPHC(Humanoid):
             self._num_amp_obs_per_step -= (6 + 3) * int((len(self._dof_names) * 3 - len(self.dof_subset)) / 3)
 
         if self._has_shape_obs_disc:
-            # todo0310, change this flag and pass gender,beta to amp_obs
+            # todo-disc-shape-condition, change this flag and pass gender,beta to amp_obs
             self._num_amp_obs_per_step += 11
         
         if self._has_limb_weight_obs_disc:

@@ -239,7 +239,7 @@ class PHCBuilder(network_builder.A2CBuilder):
 
         def eval_disc(self, amp_obs):
             """Discriminator forward for AMP observations.
-            # todo0310:
+            # todo-disc-shape-condition:
             motion = amp_obs[:, :-11]
             shape  = amp_obs[:, -11:]
             x = torch.cat([motion, shape], dim=-1)
@@ -267,7 +267,7 @@ class PHCBuilder(network_builder.A2CBuilder):
         def _build_disc(self, input_shape):
             """Build discriminator MLP and logit head.
 
-            # todo0310, condition the descriminator on gender,betas too
+            # todo-disc-shape-condition, condition the descriminator on gender,betas too
             """
             self._disc_mlp = nn.Sequential()
 

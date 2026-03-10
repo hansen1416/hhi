@@ -899,7 +899,7 @@ class PHCAgent(common_agent.CommonAgent):
           - _amp_replay_buffer: holds older fake samples from the agent
         """
         batch_shape = self.experience_buffer.obs_base_shape
-        # todo0310
+        # todo-disc-shape-condition
         self.experience_buffer.tensor_dict['amp_obs'] = torch.zeros(batch_shape + self._amp_observation_space.shape,
                                                                     device=self.ppo_device)
         self.experience_buffer.tensor_dict['rand_action_mask'] = torch.zeros(batch_shape, dtype=torch.float32, device=self.ppo_device)
@@ -988,7 +988,7 @@ class PHCAgent(common_agent.CommonAgent):
         local key-body positions
         """
 
-        # todo0310, find out where did we pass the amp_obs
+        # todo-disc-shape-condition, find out where did we pass the amp_obs
         proc_amp_obs = self._preproc_amp_obs(amp_obs)
         return self.model.a2c_network.eval_disc(proc_amp_obs)
     
