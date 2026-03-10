@@ -93,7 +93,7 @@ class HumanoidPHC(Humanoid):
         ref_body_vel = motion_res["body_vel"]
         ref_body_ang_vel = motion_res["body_ang_vel"]
 
-        # todo, do we have to offset here
+        # we removed all the gloabl_offset logic, so maybe no need to offset here either
         ref_key_pos_next = motion_res_next["key_pos"]
 
         self._compute_observations(task_obs=task_obs)
@@ -110,6 +110,7 @@ class HumanoidPHC(Humanoid):
         self._update_hist_amp_obs()
         self._compute_amp_observations()
 
+        # todo0310, add shape to amp_obs
         amp_obs_flat = self._amp_obs_buf.view(-1, self.get_num_amp_obs())
 
         self.extras["amp_obs"] = amp_obs_flat
@@ -124,6 +125,9 @@ class HumanoidPHC(Humanoid):
         return self._num_amp_obs_steps * self._num_amp_obs_per_step
 
     def fetch_amp_obs_demo(self, num_samples):
+        """
+        # todo0310, add shape to amp_obs_demo
+        """
 
         if (self._amp_obs_demo_buf is None):
             self._build_amp_obs_demo_buf(num_samples)
@@ -218,6 +222,7 @@ class HumanoidPHC(Humanoid):
             self._num_amp_obs_per_step -= (6 + 3) * int((len(self._dof_names) * 3 - len(self.dof_subset)) / 3)
 
         if self._has_shape_obs_disc:
+            # todo0310, change this flag and pass gender,beta to amp_obs
             self._num_amp_obs_per_step += 11
         
         if self._has_limb_weight_obs_disc:
@@ -284,9 +289,10 @@ class HumanoidPHC(Humanoid):
         else:
             betas = self._betas_env[env_ids]               # [len(env_ids), B]
 
-        # optional: simple normalisation to keep magnitudes modest
-        # todo, need a better normalization stratergy
-        # betas = betas / 3.0
+        # simple normalisation to keep magnitudes modest
+        # betas is [num_env, 11].
+        betas_norm = betas.clone()
+        betas_norm[:, 1:] /= 3.0
 
         # torch.Size([num_envs, 358]) -> torch.Size([num_envs, 368]), 10 betas
         # load beta into observation ===============

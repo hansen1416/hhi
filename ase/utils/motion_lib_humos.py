@@ -266,7 +266,6 @@ class MotionLibHUMOS():
 
             # if not mesh_parsers is None:
             if True:
-                # todo, new fix height logic
                 trans, trans_fix = MotionLibHUMOS.fix_trans_height(pose_aa, trans, curr_gender_beta, fix_height_mode = fix_height)
             else:
                 trans_fix = 0

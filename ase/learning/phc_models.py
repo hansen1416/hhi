@@ -22,14 +22,17 @@ class ModelPHCContinuous(ModelA2CContinuousLogStd):
             result = super().forward(input_dict)
 
             if (is_train):
+                # current rollout fake sample.
                 amp_obs = input_dict['amp_obs']
                 disc_agent_logit = self.a2c_network.eval_disc(amp_obs)
                 result["disc_agent_logit"] = disc_agent_logit
 
+                # older fake sample from replay buffer.
                 amp_obs_replay = input_dict['amp_obs_replay']
                 disc_agent_replay_logit = self.a2c_network.eval_disc(amp_obs_replay)
                 result["disc_agent_replay_logit"] = disc_agent_replay_logit
 
+                # real demo sample.
                 amp_demo_obs = input_dict['amp_obs_demo']
                 disc_demo_logit = self.a2c_network.eval_disc(amp_demo_obs)
                 result["disc_demo_logit"] = disc_demo_logit

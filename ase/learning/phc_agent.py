@@ -282,6 +282,7 @@ class PHCAgent(common_agent.CommonAgent):
         # list of tensor names to store (actions, values, logp, mu, sigma, etc.)
         update_list = self.update_list
 
+        # horizon length is 32, is it optimal?
         for n in range(self.horizon_length):
             # Reset environments that ended previously (partial reset)
             self.obs = self.env_reset(done_indices)
@@ -319,6 +320,8 @@ class PHCAgent(common_agent.CommonAgent):
 
             terminated = infos['terminate'].float()
             terminated = terminated.unsqueeze(-1)
+            # critic learns a value function for PPO
+            # # Source: learning/phc_network_builder.py -> PHCBuilder.Network.eval_critic
             next_vals = self._eval_critic(self.obs)
             next_vals *= (1.0 - terminated)
             self.experience_buffer.update_data('next_values', n, next_vals)
@@ -354,8 +357,9 @@ class PHCAgent(common_agent.CommonAgent):
 
         mb_rewards = self.experience_buffer.tensor_dict['rewards']
         mb_amp_obs = self.experience_buffer.tensor_dict['amp_obs']
+        # Runs discriminator on AMP obs to compute style rewards
         amp_rewards = self._calc_amp_rewards(mb_amp_obs)
-        # Combine task reward and discriminator reward via configured weights.
+        # Combine task reward and discriminator reward via configured weights, eg. 0.5, 0.5.
         mb_rewards = self._combine_rewards(mb_rewards, amp_rewards)
         # Generalized Advantage Estimation (GAE) or discounted returns.
         mb_advs = self.discount_values(mb_fdones, mb_values, mb_rewards, mb_next_values)
@@ -367,6 +371,8 @@ class PHCAgent(common_agent.CommonAgent):
         # Add AMP reward tensors into the batch_dict for logging and diagnostics.
         for k, v in amp_rewards.items():
             batch_dict[k] = a2c_common.swap_and_flatten01(v)
+
+        batch_dict['task_reward'] = mb_rewards.mean().item()
 
         return batch_dict
     
@@ -471,6 +477,7 @@ class PHCAgent(common_agent.CommonAgent):
         batch_dict['amp_obs_demo'] = amp_obs_demo
 
         # Replay buffer provides older agent samples; if empty, fallback to current rollout.
+        # todo explain this further
         if (self._amp_replay_buffer.get_total_count() == 0):
             batch_dict['amp_obs_replay'] = batch_dict['amp_obs']
         else:
@@ -892,6 +899,7 @@ class PHCAgent(common_agent.CommonAgent):
           - _amp_replay_buffer: holds older fake samples from the agent
         """
         batch_shape = self.experience_buffer.obs_base_shape
+        # todo0310
         self.experience_buffer.tensor_dict['amp_obs'] = torch.zeros(batch_shape + self._amp_observation_space.shape,
                                                                     device=self.ppo_device)
         self.experience_buffer.tensor_dict['rand_action_mask'] = torch.zeros(batch_shape, dtype=torch.float32, device=self.ppo_device)
@@ -960,7 +968,27 @@ class PHCAgent(common_agent.CommonAgent):
     def _eval_disc(self, amp_obs):
         """
         Forward discriminator on preprocessed amp_obs.
+
+        amp_obs: [horizon_length, num_envs, get_num_amp_obs]
+
+        root_h_obs,
+        root_rot_obs,
+        local_root_vel,
+        local_root_ang_vel,
+        dof_obs,
+        dof_vel,
+        flat_local_key_pos
+
+        root height
+        root rotation observation
+        local root linear velocity
+        local root angular velocity
+        DOF pose observation
+        DOF velocity
+        local key-body positions
         """
+
+        # todo0310, find out where did we pass the amp_obs
         proc_amp_obs = self._preproc_amp_obs(amp_obs)
         return self.model.a2c_network.eval_disc(proc_amp_obs)
     
@@ -998,6 +1026,8 @@ class PHCAgent(common_agent.CommonAgent):
     def _calc_disc_rewards(self, amp_obs):
         """
         Convert discriminator logits into a shaped reward.
+
+        discriminator learns a real-vs-fake motion classifier for AMP
 
         Standard AMP shaping:
             prob = sigmoid(logit)
@@ -1048,6 +1078,8 @@ class PHCAgent(common_agent.CommonAgent):
         """
         super()._record_train_batch_info(batch_dict, train_info)
         train_info['disc_rewards'] = batch_dict['disc_rewards']
+        train_info['task_reward'] = batch_dict['task_reward']
+
         return
     
     def _log_train_info(self, train_info, frame):
@@ -1097,7 +1129,9 @@ class PHCAgent(common_agent.CommonAgent):
                 'rewards/mean_reward_rot': train_info['mean_reward_rot'],
                 'rewards/mean_reward_vel': train_info['mean_reward_vel'],
                 'rewards/mean_reward_ang_vel': train_info['mean_reward_ang_vel'],
-                'rewards/mean_reward_power': train_info['mean_reward_power']
+                'rewards/mean_reward_power': train_info['mean_reward_power'],
+                'rewards/mean_amp_reward': train_info['disc_rewards'].mean().item(),
+                'rewards/mean_task_reward': train_info['task_reward'],
             }, step=frame)
 
         # # Custom console print (moved here)
@@ -1115,53 +1149,6 @@ class PHCAgent(common_agent.CommonAgent):
         # Add any AMP/PHC-specific logging (e.g., disc_loss, amp_rewards) from train_info
         # Example: if 'disc_loss' in train_info: wandb.log({'losses/disc_loss': train_info['disc_loss']}, step=frame)
 
-    # def _log_train_info(self, train_info, frame):
-    #     """
-    #     TensorBoard logging for discriminator-related metrics.
-    #     """
-    #     super()._log_train_info(train_info, frame)
-
-    #     # self.writer.add_scalar('losses/disc_loss', torch_ext.mean_list(train_info['disc_loss']).item(), frame)
-
-    #     # self.writer.add_scalar('info/disc_agent_acc', torch_ext.mean_list(train_info['disc_agent_acc']).item(), frame)
-    #     # self.writer.add_scalar('info/disc_demo_acc', torch_ext.mean_list(train_info['disc_demo_acc']).item(), frame)
-    #     # self.writer.add_scalar('info/disc_agent_logit', torch_ext.mean_list(train_info['disc_agent_logit']).item(), frame)
-    #     # self.writer.add_scalar('info/disc_demo_logit', torch_ext.mean_list(train_info['disc_demo_logit']).item(), frame)
-    #     # self.writer.add_scalar('info/disc_grad_penalty', torch_ext.mean_list(train_info['disc_grad_penalty']).item(), frame)
-    #     # self.writer.add_scalar('info/disc_logit_loss', torch_ext.mean_list(train_info['disc_logit_loss']).item(), frame)
-
-    #     # disc_reward_std, disc_reward_mean = torch.std_mean(train_info['disc_rewards'])
-    #     # self.writer.add_scalar('info/disc_reward_mean', disc_reward_mean.item(), frame)
-    #     # self.writer.add_scalar('info/disc_reward_std', disc_reward_std.item(), frame)
-
-    #     if self.epoch_num % wandb_logger.log_every != 0:
-    #         return
-
-    #     log_dict = {
-    #         "losses/disc_loss": torch_ext.mean_list(train_info["disc_loss"]).item(),
-    #         "info/disc_agent_acc": torch_ext.mean_list(train_info["disc_agent_acc"]).item(),
-    #         "info/disc_demo_acc": torch_ext.mean_list(train_info["disc_demo_acc"]).item(),
-    #         "info/disc_agent_logit": torch_ext.mean_list(train_info["disc_agent_logit"]).item(),
-    #         "info/disc_demo_logit": torch_ext.mean_list(train_info["disc_demo_logit"]).item(),
-    #         "info/disc_grad_penalty": torch_ext.mean_list(train_info["disc_grad_penalty"]).item(),
-    #         "info/disc_logit_loss": torch_ext.mean_list(train_info["disc_logit_loss"]).item(),
-    #     }
-
-    #     # extra useful scalars you already compute
-    #     # if hasattr(self, 'game_rewards'):
-    #     #     log_dict["info/game_reward_mean"] = self.game_rewards.mean().item()
-    #     #     log_dict["info/game_length_mean"] = self.game_lengths.mean().item()
-
-    #     # discriminator metrics (already in train_info)
-    #     # if 'disc_rewards' in train_info:
-    #     #     disc_r = train_info['disc_rewards']
-    #     #     log_dict["info/disc_reward_mean"] = disc_r.mean().item()
-    #     #     log_dict["info/disc_reward_std"] = disc_r.std().item()
-
-    #     # send to wandb
-    #     wandb_logger.log(log_dict, step=frame)
-
-    #     return
 
     def _amp_debug(self, info):
         with torch.no_grad():

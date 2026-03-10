@@ -183,7 +183,9 @@ class PHCBuilder(network_builder.A2CBuilder):
             return actor_outputs + (value, states)
 
         def eval_actor(self, obs):
-            """Actor forward with FiLM conditioning on gender/betas."""
+            """Actor forward with FiLM conditioning on gender/betas.
+            Use film to condition on the gender-betas
+            """
             state_obs = obs[:, :574]  # State/task features.
             gender_betas = obs[:, 574:]  # Condition (11 dims).
 
@@ -212,14 +214,43 @@ class PHCBuilder(network_builder.A2CBuilder):
                 return mu, sigma
 
         def eval_critic(self, obs):
-            """Critic forward (uses full obs)."""
+            """Critic forward (uses full obs).
+            critic: estimates the value of the current state, V(s), for PPO. 
+            It is used to compute next_values, advantages, returns, and the PPO value loss.
+
+            # todo0310, maybe we should condition the critic on gender,betas too
+
+            state_obs = obs[:, :574]
+            gender_betas = obs[:, 574:]
+
+            c_out = self.critic_cnn(state_obs)
+            c_out = c_out.contiguous().view(c_out.size(0), -1)
+
+            cond_out = self.critic_cond_linear(self.critic_cond_mlp(gender_betas))
+            film_params = self._split_critic_film_params(cond_out)
+            c_out = self._forward_mlp_with_film(self.critic_mlp, c_out, film_params)
+
+            value = self.value_act(self.value(c_out))
+            """
             c_out = self.critic_cnn(obs)
             c_out = c_out.contiguous().view(c_out.size(0), -1)
             c_out = self.critic_mlp(c_out)
             return self.value_act(self.value(c_out))
 
         def eval_disc(self, amp_obs):
-            """Discriminator forward for AMP observations."""
+            """Discriminator forward for AMP observations.
+            # todo0310:
+            motion = amp_obs[:, :-11]
+            shape  = amp_obs[:, -11:]
+            x = torch.cat([motion, shape], dim=-1)
+            d = self._disc_mlp(x)
+            return self._disc_logits(d)
+
+            append the same 11-D shape code to:
+                - rollout amp_obs
+                - replay amp_obs
+                - demo amp_obs_demo.
+            """
             disc_out = self._disc_mlp(amp_obs)
             return self._disc_logits(disc_out)
 
@@ -234,7 +265,10 @@ class PHCBuilder(network_builder.A2CBuilder):
             return weights
 
         def _build_disc(self, input_shape):
-            """Build discriminator MLP and logit head."""
+            """Build discriminator MLP and logit head.
+
+            # todo0310, condition the descriminator on gender,betas too
+            """
             self._disc_mlp = nn.Sequential()
 
             mlp_args = {

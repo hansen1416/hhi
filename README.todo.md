@@ -1,3 +1,24 @@
+- First: shape-condition the discriminator, and preferably the critic too.
+Second: make the reward shape-aware, e.g. normalize position errors by body scale / bone length, or use more local relative errors.
+Third: ensure each env samples a motion variant consistent with its own beta/gender.
+Fourth: only after that, tune horizon, PPO hyperparameters, or network width.
+
+Explicit Shape Conditioning in AMP Discriminator:
+Current: The discriminator (eval_disc in phc_models.py) processes amp_obs (motion features) without direct shape input, relying on implicit learning via policy exposure.
+Improvement: Extend the discriminator network (in ModelPHCContinuous) to concatenate the shape vector to its input. Then, in play_steps' post-rollout _calc_amp_rewards(mb_amp_obs), pass the shape along for conditioned rewards. This would make style penalties shape-aware (e.g., lenient on gaits for taller bodies), better aligning with HUMOS variations.
+Impact: Enhances stylized physical control, as AMP rewards would more precisely guide non-physical motions toward feasible dynamics per shape.
+
+Augmented Observations or Privileged Info:
+Current: Shape is in public obs for the actor, and privileged states (for central value net) might include it indirectly.
+Improvement: If using asymmetric A2C (as in PHC), enrich privileged critic inputs with derived shape features (e.g., mass/inertia tensors computed from HUMOS). In play_steps, when storing 'states' in the buffer, compute and append these. For extreme variations, add noise to shape params during rollouts (e.g., in env_reset) as data augmentation.
+Impact: Helps the critic better estimate values for rare shapes, improving advantage estimation and overall conversion stability.
+
+D(motion,shape)
+
+current fake: (fake_motion, fake_shape)
+replay fake: (fake_motion_old, fake_shape_old)
+real demo: (real_motion, real_shape)
+
 - apply the height offset!, choose to use phc/humos 
 
 - amass_occlusion in `scripts/data_process/convert_amass_data.py` looks good
