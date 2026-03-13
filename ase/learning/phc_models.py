@@ -22,17 +22,21 @@ class ModelPHCContinuous(ModelA2CContinuousLogStd):
             result = super().forward(input_dict)
 
             if (is_train):
-                # current rollout fake sample.
+                # the current fake branch from the latest rollout.
                 amp_obs = input_dict['amp_obs']
                 disc_agent_logit = self.a2c_network.eval_disc(amp_obs)
                 result["disc_agent_logit"] = disc_agent_logit
 
-                # older fake sample from replay buffer.
+                # the older fake branch: 
+                # past agent-generated AMP observations kept in _amp_replay_buffer 
+                # so the discriminator does not train only against the latest rollout, 
+                # which improves stability and reduces oscillation.
                 amp_obs_replay = input_dict['amp_obs_replay']
                 disc_agent_replay_logit = self.a2c_network.eval_disc(amp_obs_replay)
                 result["disc_agent_replay_logit"] = disc_agent_replay_logit
 
-                # real demo sample.
+                # the real discriminator branch: 
+                # real motion windows sampled from the motion library and stored in _amp_obs_demo_buffer
                 amp_demo_obs = input_dict['amp_obs_demo']
                 disc_demo_logit = self.a2c_network.eval_disc(amp_demo_obs)
                 result["disc_demo_logit"] = disc_demo_logit
