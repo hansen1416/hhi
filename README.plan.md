@@ -86,3 +86,41 @@ That means:
 
 * **critic with concatenated shape input**: theoretically sound
 * **critic with explicit FiLM conditioning**: optional refinement, not the first priority
+
+
+------
+
+The theoretically correct discriminator objective is not “real motion vs fake motion,” but
+
+[
+D(x,m), \quad m=\text{[gender, betas]}
+]
+
+with training objective
+
+[
+\mathbb{E}*{m \sim p(m),, x \sim p*{\text{data}}(x|m)}[\log D(x,m)]
++
+\mathbb{E}*{m \sim p(m),, x \sim p*{\pi}(x|m)}[\log(1-D(x,m))].
+]
+
+That last point matters because your discriminator loss is **distributional, not pairwise**: current fake, replay fake, and real demo logits are classified separately with BCE; there is no direct samplewise comparison between one actor sample and one demo sample .
+
+once you shape-condition the discriminator, the target becomes:
+[
+p(x \mid m), \quad m=\text{gender/beta}
+]
+
+Then the correct rule is:
+
+* **motion id can be different**
+* **gender/beta should match**
+
+So:
+
+* same clip: **not required**
+* same condition `[gender, beta]`: **required**, in theory
+
+The separate resampling in `fetch_amp_obs_demo()` is still fine, but it should be **resampling within the same gender/beta condition**, not across all shapes.
+
+
