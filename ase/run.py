@@ -196,14 +196,21 @@ def main():
 
     if USER == "hlz":
 
-        num_actors = 4
+        num_actors = 16
 
         cfg['env']['numEnvs'] = num_actors
         cfg_train['params']['config']['horizon_length'] = 4
-        cfg_train['params']['config']['minibatch_size'] = 4
-        cfg_train['params']['config']['amp_batch_size'] = 1
+        # the PPO optimization minibatch size after the rollout batch is flattened
+        # controls how many rollout samples are consumed in one gradient step for actor-critic training.
+        # enforces amp_minibatch_size <= minibatch_size.
+        cfg_train['params']['config']['minibatch_size'] = 16
+        # how many demo samples are fetched/stored at a time
+        cfg_train['params']['config']['amp_batch_size'] = 2
+        # how many AMP samples are actually consumed inside one gradient computation
         cfg_train['params']['config']['amp_minibatch_size'] = 4
+        # the capacity of the buffer that stores real/demo AMP observations
         cfg_train['params']['config']['amp_obs_demo_buffer_size'] = 20
+        # the capacity of the buffer that stores old fake/agent AMP observations.
         cfg_train['params']['config']['amp_replay_buffer_size'] = 20
         cfg_train['params']['config']['num_actors'] = num_actors
 
