@@ -34,7 +34,7 @@ class ReplayBuffer():
 
         for key, curr_buf in self._data_buf.items():
             curr_n = data_dict[key].shape[0]
-            assert(n == curr_n)
+            assert(n == curr_n), f"shape inconsistent {n}, and {curr_n}"
 
             store_n = min(curr_n, buffer_size - self._head)
             curr_buf[self._head:(self._head + store_n)] = data_dict[key][:store_n]    
