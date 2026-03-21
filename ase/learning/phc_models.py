@@ -22,23 +22,28 @@ class ModelPHCContinuous(ModelA2CContinuousLogStd):
             result = super().forward(input_dict)
 
             if (is_train):
+                # we should first figure out the math, like actor/discriminator/critic
+                # amp_obs/amp_obs_replay/amp_obs_demo
+                # maybe not really need to condition everything on the same shape
+                # disc-shape-condition
+
                 # the current fake branch from the latest rollout.
-                amp_obs = input_dict['amp_obs']
-                disc_agent_logit = self.a2c_network.eval_disc(amp_obs)
+                # [amp_minibatch_size, 2920], [amp_minibatch_size, 11] 
+                disc_agent_logit = self.a2c_network.eval_disc(input_dict['amp_obs'], input_dict['amp_shape'])
                 result["disc_agent_logit"] = disc_agent_logit
 
                 # the older fake branch: 
                 # past agent-generated AMP observations kept in _amp_replay_buffer 
                 # so the discriminator does not train only against the latest rollout, 
                 # which improves stability and reduces oscillation.
-                amp_obs_replay = input_dict['amp_obs_replay']
-                disc_agent_replay_logit = self.a2c_network.eval_disc(amp_obs_replay)
+                # [amp_minibatch_size, 2920], [amp_minibatch_size, 11]
+                disc_agent_replay_logit = self.a2c_network.eval_disc(input_dict['amp_obs_replay'], input_dict['amp_shape_replay'])
                 result["disc_agent_replay_logit"] = disc_agent_replay_logit
 
                 # the real discriminator branch: 
                 # real motion windows sampled from the motion library and stored in _amp_obs_demo_buffer
-                amp_demo_obs = input_dict['amp_obs_demo']
-                disc_demo_logit = self.a2c_network.eval_disc(amp_demo_obs)
+                # [amp_minibatch_size, 2920], [amp_minibatch_size, 11]
+                disc_demo_logit = self.a2c_network.eval_disc(input_dict['amp_obs_demo'], input_dict['amp_shape_demo'])
                 result["disc_demo_logit"] = disc_demo_logit
 
             return result

@@ -337,6 +337,8 @@ class MotionLibHUMOS():
         self._motion_num_frames = []
         self._motion_bodies = []
         self._motion_aa = []
+
+        motion_shape_list = []
         
         torch.cuda.empty_cache()
         gc.collect()
@@ -410,6 +412,8 @@ class MotionLibHUMOS():
             self._motion_num_frames.append(num_frames)
             motions.append(curr_motion)
             self._motion_lengths.append(curr_len)
+
+            motion_shape_list.append(curr_motion.gender_beta)
   
             del curr_motion
             
@@ -422,6 +426,10 @@ class MotionLibHUMOS():
         self._motion_num_frames = torch.tensor(self._motion_num_frames, device=self._device)
         # self._motion_limb_weights = torch.tensor(np.array(limb_weights), device=self._device, dtype=torch.float32)
         self._num_motions = len(motions)
+
+        self._motion_id_shape = torch.stack(motion_shape_list, dim=0)   # [num_motions, 11]
+        assert self._motion_id_shape.shape[0] == self._num_motions
+        assert self._motion_id_shape.shape[1] == 11
 
         self.gts = torch.cat([m.global_translation for m in motions], dim=0).float().to(self._device)
         self.grs = torch.cat([m.global_rotation for m in motions], dim=0).float().to(self._device)
@@ -702,3 +710,6 @@ class MotionLibHUMOS():
         B, J, _ = local_rot.shape
         dof_pos = torch_utils.quat_to_exp_map(local_rot[:, 1:])
         return dof_pos.reshape(B, -1)
+    
+    def get_motion_shape(self, motion_ids):
+        return self._motion_id_shape[motion_ids]

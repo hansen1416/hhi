@@ -209,9 +209,9 @@ def main():
         # how many AMP samples are actually consumed inside one gradient computation
         cfg_train['params']['config']['amp_minibatch_size'] = 4
         # the capacity of the buffer that stores real/demo AMP observations
-        cfg_train['params']['config']['amp_obs_demo_buffer_size'] = 20
+        cfg_train['params']['config']['amp_obs_demo_buffer_size'] = 256
         # the capacity of the buffer that stores old fake/agent AMP observations.
-        cfg_train['params']['config']['amp_replay_buffer_size'] = 20
+        cfg_train['params']['config']['amp_replay_buffer_size'] = 256
         cfg_train['params']['config']['num_actors'] = num_actors
 
     # ------------------------------------------------------------------

@@ -314,6 +314,12 @@ class PHCAgent(common_agent.CommonAgent):
 
             # AMP-specific: store discriminator input features from env.
             self.experience_buffer.update_data('amp_obs', n, infos['amp_obs'])
+
+            # the shape of infos['amp_shape'] is [num_env, 11]
+            # and it becomes [num_env * horizon_length, 11]
+            # disc-shape-condition
+            self.experience_buffer.update_data('amp_shape', n, infos['amp_shape'])
+
             # Store which envs used random vs deterministic actions this step.
             # Used to mask actor loss/entropy/bounds loss in calc_gradients().
             self.experience_buffer.update_data('rand_action_mask', n, res_dict['rand_action_mask'])
@@ -357,14 +363,18 @@ class PHCAgent(common_agent.CommonAgent):
 
         mb_rewards = self.experience_buffer.tensor_dict['rewards']
         mb_amp_obs = self.experience_buffer.tensor_dict['amp_obs']
+        # disc-shape-condition
+        mb_amp_shape = self.experience_buffer.tensor_dict['amp_shape']
         # Runs discriminator on AMP obs to compute style rewards
-        amp_rewards = self._calc_amp_rewards(mb_amp_obs)
+        amp_rewards = self._calc_amp_rewards(mb_amp_obs, mb_amp_shape)
         # Combine task reward and discriminator reward via configured weights, eg. 0.5, 0.5.
         mb_rewards = self._combine_rewards(mb_rewards, amp_rewards)
         # Generalized Advantage Estimation (GAE) or discounted returns.
         mb_advs = self.discount_values(mb_fdones, mb_values, mb_rewards, mb_next_values)
         mb_returns = mb_advs + mb_values
         # Flatten rollout tensors into a batch for PPO training.
+        # here will pack amp_shape
+        # disc-shape-condition
         batch_dict = self.experience_buffer.get_transformed_list(a2c_common.swap_and_flatten01, self.tensor_list)
         batch_dict['returns'] = a2c_common.swap_and_flatten01(mb_returns)
         batch_dict['played_frames'] = self.batch_size
@@ -439,10 +449,24 @@ class PHCAgent(common_agent.CommonAgent):
         super().prepare_dataset(batch_dict)
 
         # AMP discriminator batches
+        # shapes are [num_env * horizon_length, 2920]
         self.dataset.values_dict['amp_obs'] = batch_dict['amp_obs']
         self.dataset.values_dict['amp_obs_demo'] = batch_dict['amp_obs_demo']
         self.dataset.values_dict['amp_obs_replay'] = batch_dict['amp_obs_replay']
-        
+        # disc-shape-condition
+        self.dataset.values_dict['amp_shape'] = batch_dict['amp_shape']
+        self.dataset.values_dict['amp_shape_demo'] = batch_dict['amp_shape_demo']
+        self.dataset.values_dict['amp_shape_replay'] = batch_dict['amp_shape_replay']
+
+        # # [num_env * horizon_length, 2920]
+        # print(self.dataset.values_dict['amp_obs'].shape)
+        # print(self.dataset.values_dict['amp_obs_demo'].shape)
+        # print(self.dataset.values_dict['amp_obs_replay'].shape)
+        # # [num_env * horizon_length, 11]
+        # print(self.dataset.values_dict['amp_shape'].shape)
+        # print(self.dataset.values_dict['amp_shape_demo'].shape)
+        # print(self.dataset.values_dict['amp_shape_replay'].shape)
+
         rand_action_mask = batch_dict['rand_action_mask']
         # Mask for eps-greedy losses
         self.dataset.values_dict['rand_action_mask'] = rand_action_mask
@@ -471,17 +495,36 @@ class PHCAgent(common_agent.CommonAgent):
         rnn_masks = batch_dict.get('rnn_masks', None)
         
         # Refresh demo buffer (real motion samples) and attach a demo minibatch.
+        # print(batch_dict.keys())
+        # dict_keys(['actions', 'neglogpacs', 'values', 'mus', 'sigmas', 'obses', 'dones', 'next_obses', 'amp_obs', 'amp_shape', 'rand_action_mask', 'returns', 'played_frames', 'disc_rewards', 'task_reward'])
+
         self._update_amp_demos()
         num_obs_samples = batch_dict['amp_obs'].shape[0]
-        amp_obs_demo = self._amp_obs_demo_buffer.sample(num_obs_samples)['amp_obs']
-        batch_dict['amp_obs_demo'] = amp_obs_demo
+
+        # when sampling from `self._amp_obs_demo_buffer` , 
+        # we make sure each of the motion has same gender-beta as `amp_obs`
+        # [num_env * horizon_length, 2920]
+        demo_sample = self._amp_obs_demo_buffer.sample(num_obs_samples)
+        batch_dict['amp_obs_demo'] = demo_sample['amp_obs']
+        batch_dict['amp_shape_demo'] = demo_sample['amp_shape']
 
         # Replay buffer provides older agent samples; if empty, fallback to current rollout.
-        # todo explain this further
         if (self._amp_replay_buffer.get_total_count() == 0):
             batch_dict['amp_obs_replay'] = batch_dict['amp_obs']
+            batch_dict['amp_shape_replay'] = batch_dict['amp_shape']
         else:
-            batch_dict['amp_obs_replay'] = self._amp_replay_buffer.sample(num_obs_samples)['amp_obs']
+            # batch_dict['amp_obs_replay'] = self._amp_replay_buffer.sample(num_obs_samples)['amp_obs']
+            replay_sample = self._amp_replay_buffer.sample(num_obs_samples)
+            batch_dict['amp_obs_replay'] = replay_sample['amp_obs']
+            batch_dict['amp_shape_replay'] = replay_sample['amp_shape']
+
+        # [num_env * horizon_length, 2920] for obs; [num_env * horizon_length, 2920] for shape
+        # print(batch_dict['amp_obs'].shape)
+        # print(batch_dict['amp_shape'].shape)
+        # print(batch_dict['amp_obs_demo'].shape)
+        # print(batch_dict['amp_shape_demo'].shape)
+        # print(batch_dict['amp_obs_replay'].shape)
+        # print(batch_dict['amp_shape_replay'].shape)
 
         self.set_train()
 
@@ -541,7 +584,8 @@ class PHCAgent(common_agent.CommonAgent):
         update_time = update_time_end - update_time_start
         total_time = update_time_end - play_time_start
         # Some rl-games configs use "standard_epoch": update schedule once per epoch.
-        self._store_replay_amp_obs(batch_dict['amp_obs'])
+        # disc-shape-condition
+        self._store_replay_amp_obs(batch_dict['amp_obs'], batch_dict['amp_shape'])
 
         train_info['play_time'] = play_time
         train_info['update_time'] = update_time
@@ -586,6 +630,11 @@ class PHCAgent(common_agent.CommonAgent):
         amp_obs_replay = input_dict['amp_obs_replay'][0:self._amp_minibatch_size]
         amp_obs_replay = self._preproc_amp_obs(amp_obs_replay)
 
+        # disc-shape-condition
+        amp_shape = input_dict['amp_shape'][0:self._amp_minibatch_size]
+        amp_shape_demo = input_dict['amp_shape_demo'][0:self._amp_minibatch_size]
+        amp_shape_replay = input_dict['amp_shape_replay'][0:self._amp_minibatch_size]
+
         amp_obs_demo = input_dict['amp_obs_demo'][0:self._amp_minibatch_size]
         amp_obs_demo = self._preproc_amp_obs(amp_obs_demo)
         amp_obs_demo.requires_grad_(True)
@@ -606,8 +655,13 @@ class PHCAgent(common_agent.CommonAgent):
             'prev_actions': actions_batch, 
             'obs' : obs_batch,
             'amp_obs' : amp_obs,
+            'amp_shape': amp_shape,
+            
             'amp_obs_replay' : amp_obs_replay,
-            'amp_obs_demo' : amp_obs_demo
+            'amp_shape_replay': amp_shape_replay,
+            
+            'amp_obs_demo' : amp_obs_demo,
+            'amp_shape_demo': amp_shape_demo,
         }
 
         # RNN-specific fields (if applicable).
@@ -878,12 +932,13 @@ class PHCAgent(common_agent.CommonAgent):
         demo_acc = torch.mean(demo_acc.float())
         return agent_acc, demo_acc
 
-    def _fetch_amp_obs_demo(self, num_samples):
+    def _fetch_amp_obs_demo(self):
         """
         Fetch real AMP observations from the environment's demo provider.
         Typically this samples from a motion dataset (e.g., AMASS clips).
         """
-        amp_obs_demo = self.vec_env.env.fetch_amp_obs_demo(num_samples)
+        # amp_obs_demo = self.vec_env.env.fetch_amp_obs_demo(num_samples)
+        amp_obs_demo = self.vec_env.env.fetch_amp_obs_demo()
         return amp_obs_demo
 
     def _build_amp_buffers(self):
@@ -899,11 +954,13 @@ class PHCAgent(common_agent.CommonAgent):
           - _amp_replay_buffer: holds older fake samples from the agent
         """
         batch_shape = self.experience_buffer.obs_base_shape
-        # todo-disc-shape-condition
+        
         self.experience_buffer.tensor_dict['amp_obs'] = torch.zeros(batch_shape + self._amp_observation_space.shape,
                                                                     device=self.ppo_device)
         self.experience_buffer.tensor_dict['rand_action_mask'] = torch.zeros(batch_shape, dtype=torch.float32, device=self.ppo_device)
-        
+        # disc-shape-condition
+        self.experience_buffer.tensor_dict['amp_shape'] = torch.zeros(batch_shape + (11,), device=self.ppo_device)
+
         amp_obs_demo_buffer_size = int(self.config['amp_obs_demo_buffer_size'])
         self._amp_obs_demo_buffer = replay_buffer.ReplayBuffer(amp_obs_demo_buffer_size, self.ppo_device)
 
@@ -912,21 +969,37 @@ class PHCAgent(common_agent.CommonAgent):
         self._amp_replay_buffer = replay_buffer.ReplayBuffer(replay_buffer_size, self.ppo_device)
         
         self._build_rand_action_probs()
-        
-        self.tensor_list += ['amp_obs', 'rand_action_mask']
+        # disc-shape-condition
+        self.tensor_list += ['amp_obs', 'amp_shape', 'rand_action_mask']
         return
 
     def _init_amp_demo_buf(self):
         """
         Pre-fill the demo buffer with real samples.
         This avoids a cold-start where discriminator sees no real data.
+        
+        # disc-shape-condition
         """
-        buffer_size = self._amp_obs_demo_buffer.get_buffer_size()
-        num_batches = int(np.ceil(buffer_size / self._amp_batch_size))
 
-        for i in range(num_batches):
-            curr_samples = self._fetch_amp_obs_demo(self._amp_batch_size)
-            self._amp_obs_demo_buffer.store({'amp_obs': curr_samples})
+        # we have the beta_env information already, maybe just use them
+        # [num_env, 2920]
+        # print(self.vec_env.env.task._betas_env.shape)
+        amp_obs_demo, amp_shape = self._fetch_amp_obs_demo()
+
+        # both [num_env * horizon_length, 2920]
+        amp_obs_demo_flat = self.expand_env_tensor_to_horizon_flat(amp_obs_demo)
+        amp_shape_flat = self.expand_env_tensor_to_horizon_flat(amp_shape)
+
+        self._amp_obs_demo_buffer.store({'amp_obs': amp_obs_demo_flat, 'amp_shape': amp_shape_flat})
+
+        # self._amp_obs_demo_buffer.store({'amp_obs': amp_obs_demo})
+
+        # buffer_size = self._amp_obs_demo_buffer.get_buffer_size()
+        # num_batches = int(np.ceil(buffer_size / self._amp_batch_size))
+
+        # for i in range(num_batches):
+        #     curr_samples = self._fetch_amp_obs_demo(self._amp_batch_size)
+        #     self._amp_obs_demo_buffer.store({'amp_obs': curr_samples})
 
         return
     
@@ -934,9 +1007,19 @@ class PHCAgent(common_agent.CommonAgent):
         """
         Add a fresh batch of real demo samples each epoch.
         Maintains diversity and keeps demo distribution current if dataset sampling is dynamic.
+
+        # disc-shape-condition
         """
-        new_amp_obs_demo = self._fetch_amp_obs_demo(self._amp_batch_size)
-        self._amp_obs_demo_buffer.store({'amp_obs': new_amp_obs_demo})
+        # [amp_batch_size, 2920]
+        # new_amp_obs_demo = self._fetch_amp_obs_demo(self._amp_batch_size)
+        new_amp_obs_demo, new_amp_shape = self._fetch_amp_obs_demo()
+
+        # both [num_env * horizon_length, 2920]
+        amp_obs_demo_flat = self.expand_env_tensor_to_horizon_flat(new_amp_obs_demo)
+        new_amp_shape_flat = self.expand_env_tensor_to_horizon_flat(new_amp_shape)
+
+        # self._amp_obs_demo_buffer.store({'amp_obs': new_amp_obs_demo})
+        self._amp_obs_demo_buffer.store({'amp_obs': amp_obs_demo_flat, 'amp_shape': new_amp_shape_flat})
         return
 
     def _preproc_amp_obs(self, amp_obs):
@@ -965,7 +1048,7 @@ class PHCAgent(common_agent.CommonAgent):
                          + self._disc_reward_w * disc_r
         return combined_rewards
 
-    def _eval_disc(self, amp_obs):
+    def _eval_disc(self, amp_obs, amp_shape):
         """
         Forward discriminator on preprocessed amp_obs.
 
@@ -988,9 +1071,8 @@ class PHCAgent(common_agent.CommonAgent):
         local key-body positions
         """
 
-        # todo-disc-shape-condition, find out where did we pass the amp_obs
         proc_amp_obs = self._preproc_amp_obs(amp_obs)
-        return self.model.a2c_network.eval_disc(proc_amp_obs)
+        return self.model.a2c_network.eval_disc(proc_amp_obs, amp_shape)
     
     def _calc_advs(self, batch_dict):
         """
@@ -1011,19 +1093,19 @@ class PHCAgent(common_agent.CommonAgent):
 
         return advantages
 
-    def _calc_amp_rewards(self, amp_obs):
+    def _calc_amp_rewards(self, amp_obs, amp_shape):
         """
         Compute all AMP-related rewards to be added into the RL reward.
 
         Currently only includes discriminator reward, but the dict structure allows extensions.
         """
-        disc_r = self._calc_disc_rewards(amp_obs)
+        disc_r = self._calc_disc_rewards(amp_obs, amp_shape)
         output = {
             'disc_rewards': disc_r
         }
         return output
 
-    def _calc_disc_rewards(self, amp_obs):
+    def _calc_disc_rewards(self, amp_obs, amp_shape):
         """
         Convert discriminator logits into a shaped reward.
 
@@ -1035,15 +1117,17 @@ class PHCAgent(common_agent.CommonAgent):
         so higher "realness" yields higher reward.
         """
         with torch.no_grad():
-            disc_logits = self._eval_disc(amp_obs)
+            disc_logits = self._eval_disc(amp_obs, amp_shape)
             prob = 1 / (1 + torch.exp(-disc_logits)) 
             disc_r = -torch.log(torch.maximum(1 - prob, torch.tensor(0.0001, device=self.ppo_device)))
             disc_r *= self._disc_reward_scale
 
         return disc_r
 
-    def _store_replay_amp_obs(self, amp_obs):
+    def _store_replay_amp_obs(self, amp_obs, amp_shape):
         """
+        # disc-shape-condition
+
         Store agent-generated AMP observations into replay buffer.
 
         Replay buffer purpose:
@@ -1062,13 +1146,16 @@ class PHCAgent(common_agent.CommonAgent):
             keep_probs = to_torch(np.array([self._amp_replay_keep_prob] * amp_obs.shape[0]), device=self.ppo_device)
             keep_mask = torch.bernoulli(keep_probs) == 1.0
             amp_obs = amp_obs[keep_mask]
+            # disc-shape-condition
+            amp_shape = amp_shape[keep_mask]
 
         if (amp_obs.shape[0] > buf_size):
             rand_idx = torch.randperm(amp_obs.shape[0])
             rand_idx = rand_idx[:buf_size]
             amp_obs = amp_obs[rand_idx]
+            amp_shape = amp_shape[rand_idx]
 
-        self._amp_replay_buffer.store({'amp_obs': amp_obs})
+        self._amp_replay_buffer.store({'amp_obs': amp_obs, 'amp_shape': amp_shape,})
         return
 
     
@@ -1154,8 +1241,11 @@ class PHCAgent(common_agent.CommonAgent):
         with torch.no_grad():
             amp_obs = info['amp_obs']
             amp_obs = amp_obs[0:1]
-            disc_pred = self._eval_disc(amp_obs)
-            amp_rewards = self._calc_amp_rewards(amp_obs)
+            # disc-shape-condition
+            amp_shape = info['amp_shape']
+            amp_shape = amp_shape[0:1]
+            disc_pred = self._eval_disc(amp_obs, amp_shape)
+            amp_rewards = self._calc_amp_rewards(amp_obs, amp_shape)
             disc_reward = amp_rewards['disc_rewards']
 
             disc_pred = disc_pred.detach().cpu().numpy()[0, 0]
@@ -1163,7 +1253,18 @@ class PHCAgent(common_agent.CommonAgent):
             # print("disc_pred: ", disc_pred, disc_reward)
         return
 
+    def expand_env_tensor_to_horizon_flat(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Args:
+            x: [num_env, n]
+            horizon_length: rollout horizon length
 
+        Returns:
+            [num_env * horizon_length, n]
+        """
 
+        # [1, num_env, n] -> [horizon_length, num_env, n]
+        x_seq = x.unsqueeze(0).expand(self.horizon_length, -1, -1)
 
-    
+        # same flattening logic used by rl-games
+        return a2c_common.swap_and_flatten01(x_seq)

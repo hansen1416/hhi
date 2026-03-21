@@ -29,5 +29,5 @@ class VecTaskPythonWrapper(VecTaskPython):
     def amp_observation_space(self):
         return self._amp_obs_space
 
-    def fetch_amp_obs_demo(self, num_samples):
-        return self.task.fetch_amp_obs_demo(num_samples)
+    def fetch_amp_obs_demo(self):
+        return self.task.fetch_amp_obs_demo()

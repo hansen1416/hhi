@@ -110,10 +110,20 @@ class HumanoidPHC(Humanoid):
         self._update_hist_amp_obs()
         self._compute_amp_observations()
 
-        # todo-disc-shape-condition, add shape to amp_obs
         amp_obs_flat = self._amp_obs_buf.view(-1, self.get_num_amp_obs())
 
-        self.extras["amp_obs"] = amp_obs_flat
+        # each row of `amp_obs_flat`, `amp_shape` corresponds to one env,
+        # disc-shape-condition
+        """
+        fake_amp_obs   = batch_dict['amp_obs'][idx]
+        fake_amp_shape = batch_dict['amp_shape'][idx]
+
+        real_amp_obs = _fetch_amp_obs_demo(fake_amp_shape)
+
+        then use fake_amp_obs[i] with real_amp_obs[i], both conditioned on the same fake_amp_shape[i]
+        """
+        self.extras["amp_obs"] = amp_obs_flat # [num_envs, get_num_amp_obs()]
+        self.extras["amp_shape"] = self._betas_env# [num_envs, 11]
 
         # fetures plugin -------------
         for f in self._features: f.on_post_physics_step(self, ref_key_pos_next)
@@ -124,17 +134,29 @@ class HumanoidPHC(Humanoid):
     def get_num_amp_obs(self):
         return self._num_amp_obs_steps * self._num_amp_obs_per_step
 
-    def fetch_amp_obs_demo(self, num_samples):
+    # def fetch_amp_obs_demo(self, num_samples):
+    def fetch_amp_obs_demo(self):
         """
-        # todo-disc-shape-condition, add shape to amp_obs_demo
-        """
+        num_sample is the same as PHCAgent._amp_batch_size, 
+        controled by cfg_train['params']['config']['amp_batch_size']
 
+        disc-shape-condition
+        """
+  
         if (self._amp_obs_demo_buf is None):
-            self._build_amp_obs_demo_buf(num_samples)
+            self._build_amp_obs_demo_buf(self.num_envs)
         else:
-            assert(self._amp_obs_demo_buf.shape[0] == num_samples)
+            assert(self._amp_obs_demo_buf.shape[0] == self.num_envs)
+        # typical self._amp_obs_demo_buf shape, [1, 10, 292]
+        # 1 = num_samples; 10 = self._num_amp_obs_steps; 292 = self._num_amp_obs_per_step
+
+        gender_beta_key = []
+
+        for i in range(self.num_envs):
+            gender_beta_key.append(self.env_id_beta_keys_map[i])
         
-        motion_ids = self._motion_lib.sample_motions(num_samples)
+        # [num_envs,]
+        motion_ids = self._motion_lib.sample_motions(self.num_envs, gender_beta_key)
         
         # since negative times are added to these values in build_amp_obs_demo,
         # we shift them into the range [0 + truncate_time, end of clip]
@@ -142,11 +164,18 @@ class HumanoidPHC(Humanoid):
         motion_times0 = self._motion_lib.sample_time(motion_ids, truncate_time=truncate_time)
         motion_times0 += truncate_time
 
+        # [num_envs x 10, 292]
         amp_obs_demo = self.build_amp_obs_demo(motion_ids, motion_times0)
+
+        # [num_envs, 10, 292]
         self._amp_obs_demo_buf[:] = amp_obs_demo.view(self._amp_obs_demo_buf.shape)
+
+        # [num_envs, 2920]
         amp_obs_demo_flat = self._amp_obs_demo_buf.view(-1, self.get_num_amp_obs())
 
-        return amp_obs_demo_flat
+        amp_shape_demo = self._motion_lib.get_motion_shape(motion_ids)
+
+        return amp_obs_demo_flat, amp_shape_demo
 
     def build_amp_obs_demo(self, motion_ids, motion_times0):
         dt = self.dt
@@ -392,23 +421,6 @@ class HumanoidPHC(Humanoid):
         return
 
     def _reset_actors(self, env_ids, root_pos, root_rot, dof_pos, root_vel, root_ang_vel, dof_vel):
-
-        # num_envs = env_ids.shape[0]
-        
-        # motion_ids = self._motion_lib.sample_motions(num_envs)
-
-        # ---- target motion observation ----
-        # random start time (ensure AMP history queries stay >= 0)
-        # truncate_time = self.dt * (self._num_amp_obs_steps - 1)
-        # motion_times = self._motion_lib.sample_time(motion_ids, truncate_time=truncate_time)
-        # motion_times = motion_times + truncate_time
-        # ---- target motion observation ----
-        
-        # ---- target motion observation ----
-        # anchor motion into each env’s spawn location (PHC-style global_offset)
-        # global_offset = self._spawn_root_pos[env_ids] - root_pos
-        # root_pos = root_pos + global_offset
-        # ---- target motion observation ----
 
         # set env actor state
         self._humanoid_root_states[env_ids, 0:3] = root_pos
