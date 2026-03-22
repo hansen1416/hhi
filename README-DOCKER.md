@@ -12,7 +12,7 @@ chmod -R 777 output artifacts && \
 apt update && apt install -y zip unzip
 
 scp -i ~/.ssh/id_ed25519 /home/hlz/datasets/humos_results.zip root@202.181.159.138:/home/hhi
-
+scp -i ~/.ssh/id_ed25519 /home/hlz/datasets/smpl_model.zip  root@95.133.253.92:/home/hhi
 
 -----------------------------
 
