@@ -11,7 +11,7 @@ python ase/run.py --task HumanoidPHC --cfg_env ase/data/cfg/humanoid_phc.yaml --
 python ase/run.py --test --task HumanoidPHC --num_envs 16 --cfg_env ase/data/cfg/humanoid_phc.yaml --cfg_train ase/data/cfg/train/rlg/phc_humanoid.yaml --motion_file /home/hlz/datasets/humos_results/000003_female_1e5a1c90.pkl --checkpoint /home/hlz/Documents/humos-128shape-0226/Humanoid_26-15-39-46/nn/Humanoid_1500.pth
 `
 
-python ase/run.py --test --task HumanoidPHC --num_envs 16 --cfg_env ase/data/cfg/humanoid_phc.yaml --cfg_train ase/data/cfg/train/rlg/phc_humanoid.yaml --motion_file /home/hlz/datasets/humos_results_4-0307/000005_female_0e26b88d.pkl --checkpoint /home/hlz/Documents/4shapes/output/Humanoid_21-17-48-46/nn/hhi_film.pth
+python ase/run.py --test --task HumanoidPHC --num_envs 16 --cfg_env ase/data/cfg/humanoid_phc.yaml --cfg_train ase/data/cfg/train/rlg/phc_humanoid.yaml --motion_file /home/hlz/datasets/humos_results/000005_female_3c2cfe86.pkl --checkpoint /home/hlz/Documents/128shapes00005/hhi_film.pth
 
 ## Visual HUMOS results in PHC format
 

@@ -196,7 +196,7 @@ def main():
 
     if USER == "hlz":
 
-        num_actors = 16
+        num_actors = 1
 
         cfg['env']['numEnvs'] = num_actors
         cfg_train['params']['config']['horizon_length'] = 4
