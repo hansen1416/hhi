@@ -25,7 +25,11 @@ class HumanoidPHC(Humanoid):
         self._reset_ref_env_ids = []
 
         self.follow_camera_enabled = True
-        self.target_marker_enabled = False
+
+        if cfg['args'].test and cfg['args'].play and not cfg['args'].headless:
+            self.target_marker_enabled = True
+        else:
+            self.target_marker_enabled = False
 
         super().__init__(cfg=cfg,
                          sim_params=sim_params,

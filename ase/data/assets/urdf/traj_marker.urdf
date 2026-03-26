@@ -11,11 +11,5 @@
       </material>
     </visual>
 
-    <collision>
-      <origin xyz="0 0 0"/>
-      <geometry>
-        <sphere radius="0.001"/>
-      </geometry>
-    </collision>
   </link>
 </robot>
