@@ -392,8 +392,19 @@ class HumanoidPHC(Humanoid):
             self._sampled_motion_ids[env_ids] = self._motion_lib.sample_motions(num_envs, gender_beta_key)
 
             truncate_time = self.dt * (self._num_amp_obs_steps - 1)
-            motion_times = self._motion_lib.sample_time(self._sampled_motion_ids[env_ids], truncate_time=truncate_time)
-            motion_times = motion_times + truncate_time
+
+
+            # force full-motion playback when in test/play/non-headless mode
+            if self.target_marker_enabled:
+                # HumanoidViewMotion / visualization mode:
+                # always start at t=0 so every reset plays the COMPLETE motion
+                # (works perfectly with your 128 HUMOS variations + AMASS clips)
+                motion_times = torch.zeros(num_envs, dtype=torch.float, device=self.device)
+            else:
+                # Original training behavior (random start with AMP history buffer)
+                truncate_time = self.dt * (self._num_amp_obs_steps - 1)
+                motion_times = self._motion_lib.sample_time(self._sampled_motion_ids[env_ids], truncate_time=truncate_time)
+                motion_times = motion_times + truncate_time
 
             self._reset_ref_env_ids = env_ids
             self._reset_ref_motion_ids = self._sampled_motion_ids[env_ids]
