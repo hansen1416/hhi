@@ -1,3 +1,38 @@
+## To-Do List (Chronological Order)
+
+1. **Document the learning process**
+   - Convert key parts of the training code into **two mathematical formulas and two clear descriptions**.
+   - This becomes a paper-ready explanation of the learning mechanism.
+
+2. **Establish the evaluation protocol**
+   - Define how performance will be evaluated across **different body shapes and motions**.
+   - Ensure consistent metrics for morphology-conditioned training.
+
+3. **Implement transfer learning**
+   - Load weights from existing models (e.g., ASE or PHC).
+   - Add the necessary layers to adapt the policy to **shape-conditioned control**.
+
+4. **Extend training to multiple motions**
+   - Move from **single-motion training** to **multi-motion training**.
+   - Maintain consistent loss tracking across motions and shapes.
+
+5. **Optimize hyperparameters for shape conditioning**
+   - Tune reward coefficients, conditioning mechanisms, and stability parameters.
+   - Ensure morphology conditioning improves tracking rather than causing static solutions.
+
+6. **Scale training to multiple GPUs or a cluster**
+   - Move from **single-GPU training** to **distributed training**.
+   - This can significantly reduce wall-clock training time for large morphology datasets.
+
+7. **Re-validate after scaling**
+   - Verify that distributed training preserves learning stability.
+   - Recheck reward curves, motion tracking quality, and discriminator behavior.
+
+
+-----------------
+
+
+
 **Proposed Plan (Concise Summary)**
 
 1. **Physics-based Motion Synthesis via RL**
