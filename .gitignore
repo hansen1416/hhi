@@ -11,3 +11,5 @@ tmp*
 wandb/
 artifacts/
 climate
+
+phc_models/
