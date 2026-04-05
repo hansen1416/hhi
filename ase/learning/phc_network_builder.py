@@ -45,10 +45,11 @@ Morphology condition for AMP:
 The discriminator FiLM implementation is written to work on the LAST dimension,
 so it supports both 2D [B, D] and 3D [T, N, D] inputs.
 """
-
+from rl_games.common import object_factory
 from rl_games.algos_torch import torch_ext
 from rl_games.algos_torch import layers
-from rl_games.algos_torch import network_builder
+# from rl_games.algos_torch import network_builder
+import learning.rl_games_network_builder as network_builder
 
 import torch
 import torch.nn as nn
@@ -62,7 +63,6 @@ class PHCBuilder(network_builder.A2CBuilder):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-
     class Network(network_builder.A2CBuilder.Network):
         """
         Actor-Critic + Discriminator network.
