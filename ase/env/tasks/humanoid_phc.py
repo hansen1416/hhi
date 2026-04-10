@@ -267,7 +267,13 @@ class HumanoidPHC(Humanoid):
         # ---- target motion observation ----
         self._enable_task_obs = True
         self._task_obs_v = 7
-        self._num_task_obs = 9 * len(key_bodies)   # [Δp_local, Δv_local, p*_rel_local]
+        # self._num_task_obs = 9 * len(key_bodies)   # [Δp_local, Δv_local, p*_rel_local]
+
+        # 576 = PHC’s task / imitation observation under env_im_pnn
+        # ∣track_bodies∣×num_traj_samples×24 = 24×1×24=576.
+        self._num_traj_samples = 1
+        self._num_task_obs = 24 * num_key_bodies * self._num_traj_samples
+
         self._num_obs += self._num_task_obs
 
         # here self._num_obs == 585. 
@@ -332,11 +338,11 @@ class HumanoidPHC(Humanoid):
 
         # ---- target motion observation ----
         if task_obs is not None:
-            # [num_env, 574]
+            # [num_env, 934]
             obs = torch.cat([obs, task_obs], dim=-1)
         # ---- target motion observation ----
 
-        # [num_env, 585]
+        # [num_env, 945]
         obs = torch.cat([obs, betas], dim=-1)
 
         if (env_ids is None):
@@ -566,12 +572,6 @@ class HumanoidPHC(Humanoid):
         if env_ids is None:
             env_ids = torch.arange(self.num_envs, device=self.device, dtype=torch.long)
 
-        root_pos = self._rigid_body_pos[env_ids, 0, :]
-        root_rot = self._rigid_body_rot[env_ids, 0, :]
-
-        body_pos = self._rigid_body_pos[env_ids][:, self._key_body_ids, :]
-        body_vel = self._rigid_body_vel[env_ids][:, self._key_body_ids, :]
-
         motion_ids = self._sampled_motion_ids[env_ids]
         t = self.progress_buf[env_ids].float() * self.dt + \
             self._motion_start_times[env_ids]
@@ -585,10 +585,34 @@ class HumanoidPHC(Humanoid):
         # # motion_res["key_pos"].shape is [num_envs, the number of key bodies, 3]
         # ref_pos = motion_res["key_pos"] + offset
 
-        ref_pos = motion_res["key_pos"]
-        ref_vel = ( motion_res_next["key_pos"] - motion_res["key_pos"]) / self.dt
+        root_pos = self._rigid_body_pos[env_ids, 0, :]
+        root_rot = self._rigid_body_rot[env_ids, 0, :]
 
-        task_obs = compute_task_obs_v7_1step(root_pos, root_rot, body_pos, body_vel, ref_pos, ref_vel)
+        body_pos = self._rigid_body_pos[env_ids][:, self._key_body_ids, :]
+        body_vel = self._rigid_body_vel[env_ids][:, self._key_body_ids, :]
+        body_rot     = self._rigid_body_rot[env_ids][:, self._key_body_ids, :]
+        body_ang_vel = self._rigid_body_ang_vel[env_ids][:, self._key_body_ids, :]
+
+        # ref_pos = motion_res["key_pos"]
+        # ref_vel = ( motion_res_next["key_pos"] - motion_res["key_pos"]) / self.dt
+
+        # task_obs = compute_task_obs_v7_1step(root_pos, root_rot, body_pos, body_vel, ref_pos, ref_vel)
+
+        ref_body_pos     = motion_res["rg_pos"][:, self._key_body_ids, :]
+        ref_body_rot     = motion_res["rb_rot"][:, self._key_body_ids, :]
+        ref_body_vel     = motion_res["body_vel"][:, self._key_body_ids, :]
+        ref_body_ang_vel = motion_res["body_ang_vel"][:, self._key_body_ids, :]
+
+        ref_body_pos     = motion_res["rg_pos"][:, self._key_body_ids, :]
+        ref_body_rot     = motion_res["rb_rot"][:, self._key_body_ids, :]
+        ref_body_vel     = motion_res["body_vel"][:, self._key_body_ids, :]
+        ref_body_ang_vel = motion_res["body_ang_vel"][:, self._key_body_ids, :]
+
+        task_obs = compute_task_obs_v6_1step(
+            root_pos, root_rot,
+            body_pos, body_rot, body_vel, body_ang_vel,
+            ref_body_pos, ref_body_rot, ref_body_vel, ref_body_ang_vel
+        )
 
         return motion_res, motion_res_next, task_obs
     # ---- target motion observation ----
@@ -719,6 +743,89 @@ def compute_task_obs_v7_1step(root_pos, root_rot, body_pos, body_vel, ref_pos, r
     return torch.cat([dp_l, dv_l, rr_l], dim=-1)   # (B, 9*J)
 # ---- target motion observation ----
 
+
+@torch.jit.script
+def compute_task_obs_v6_1step(
+    root_pos, root_rot,
+    body_pos, body_rot, body_vel, body_ang_vel,
+    ref_body_pos, ref_body_rot, ref_body_vel, ref_body_ang_vel
+):
+    """
+    if something went wrong, double check this method
+    """
+    # type: (Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor) -> Tensor
+    # Shapes:
+    #   root_pos, root_rot:               [B, 3], [B, 4]
+    #   body_*, ref_body_*:               [B, J, C]
+    # Output:
+    #   [B, 24 * J]
+
+    B, J, _ = body_pos.shape
+
+    heading_inv = torch_utils.calc_heading_quat_inv(root_rot)   # [B, 4]
+    heading     = torch_utils.calc_heading_quat(root_rot)       # [B, 4]
+
+    heading_inv_expand = heading_inv.unsqueeze(1).repeat(1, J, 1)   # [B, J, 4]
+    heading_expand     = heading.unsqueeze(1).repeat(1, J, 1)       # [B, J, 4]
+
+    # 1) local body-position difference: 3 * J
+    diff_pos = ref_body_pos - body_pos
+    diff_pos_local = quat_rotate(
+        heading_inv_expand.reshape(-1, 4),
+        diff_pos.reshape(-1, 3)
+    ).view(B, J * 3)
+
+    # 2) local body-rotation difference: 6 * J
+    diff_rot_global = quat_mul(
+        ref_body_rot,
+        torch_utils.quat_conjugate(body_rot)
+    )  # [B, J, 4]
+
+    diff_rot_local = quat_mul(
+        quat_mul(
+            heading_inv_expand.reshape(-1, 4),
+            diff_rot_global.reshape(-1, 4)
+        ),
+        heading_expand.reshape(-1, 4)
+    )
+    diff_rot_local = torch_utils.quat_to_tan_norm(diff_rot_local).view(B, J * 6)
+
+    # 3) local linear-velocity difference: 3 * J
+    diff_vel = ref_body_vel - body_vel
+    diff_vel_local = quat_rotate(
+        heading_inv_expand.reshape(-1, 4),
+        diff_vel.reshape(-1, 3)
+    ).view(B, J * 3)
+
+    # 4) local angular-velocity difference: 3 * J
+    diff_ang_vel = ref_body_ang_vel - body_ang_vel
+    diff_ang_vel_local = quat_rotate(
+        heading_inv_expand.reshape(-1, 4),
+        diff_ang_vel.reshape(-1, 3)
+    ).view(B, J * 3)
+
+    # 5) local reference body position: 3 * J
+    ref_pos_rel = ref_body_pos - root_pos.unsqueeze(1)
+    ref_pos_local = quat_rotate(
+        heading_inv_expand.reshape(-1, 4),
+        ref_pos_rel.reshape(-1, 3)
+    ).view(B, J * 3)
+
+    # 6) local reference body rotation: 6 * J
+    ref_rot_local = quat_mul(
+        heading_inv_expand.reshape(-1, 4),
+        ref_body_rot.reshape(-1, 4)
+    )
+    ref_rot_local = torch_utils.quat_to_tan_norm(ref_rot_local).view(B, J * 6)
+
+    return torch.cat([
+        diff_pos_local,
+        diff_rot_local,
+        diff_vel_local,
+        diff_ang_vel_local,
+        ref_pos_local,
+        ref_rot_local,
+    ], dim=-1)
 
 @torch.jit.script
 def compute_humanoid_observations_max(body_pos, body_rot, body_vel, body_ang_vel, local_root_obs, root_height_obs):
