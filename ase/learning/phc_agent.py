@@ -814,6 +814,13 @@ class PHCAgent(common_agent.CommonAgent):
         self._disc_reward_scale = config['disc_reward_scale']
         # Normalize amp_obs inputs to discriminator.
         self._normalize_amp_input = config.get('normalize_amp_input', True)
+
+        # ---- transfer learning ----
+        self._pretrained_ckpt = config.get('pretrained_ckpt', os.path.join("phc_models", "phc_3_Humanoid.pth"))
+        self._pretrained_loaded = False
+        self._pretrained_raw_ckpt = None
+        self._pretrained_model_state = None
+        # ---- transfer learning ----
         return
 
     def _build_net_config(self):
@@ -848,12 +855,316 @@ class PHCAgent(common_agent.CommonAgent):
 
         return
 
+    def _load_pretrained_checkpoint(self):
+        """
+        Load selected weights from an old PHC checkpoint into the current model.
+
+        # load transfer learning model
+        # the phc_3 model has obs 934=358+576
+        # 358 = PHC’s self observation for SMPL with max-coordinate observations enabled:
+        # 1+∣body_names∣×(3+6+3+3)−3
+        # 576 = PHC’s task / imitation observation under env_im_pnn
+        # ∣track_bodies∣×num_traj_samples×24 = 24×1×24=576.
+        
+        Manual mapping:
+        - old actor: a2c_network.pnn.actors.0.*
+        - new actor: a2c_network.actor_mlp.* and a2c_network.mu.*
+        - critic/disc/sigma: same names, load directly
+
+        New conditioning layers are intentionally left randomly initialized:
+        - cond_mlp, cond_linear
+        - critic_cond_mlp, critic_cond_linear
+        - disc_cond_mlp, disc_cond_linear
+        """
+        if self._pretrained_loaded:
+            return
+
+        ckpt_path = self._pretrained_ckpt
+        if ckpt_path is None or ckpt_path == "":
+            return
+
+        if not os.path.isfile(ckpt_path):
+            raise FileNotFoundError(f"Pretrained checkpoint not found: {ckpt_path}")
+
+        print(f"[PHC] Loading pretrained checkpoint: {ckpt_path}")
+        ckpt = torch.load(ckpt_path, map_location=self.ppo_device)
+
+        if "model" not in ckpt:
+            raise KeyError(f"Checkpoint does not contain 'model': {ckpt_path}")
+
+        src_state = ckpt["model"]
+        dst_state = self.model.state_dict()
+
+        # ---------------------------------------------------------
+        # 1) explicit mapping: old key -> new key
+        # ---------------------------------------------------------
+        key_map = {
+            # direct load
+            "a2c_network.sigma": "a2c_network.sigma",
+
+            "a2c_network.critic_mlp.0.weight": "a2c_network.critic_mlp.0.weight",
+            "a2c_network.critic_mlp.0.bias":   "a2c_network.critic_mlp.0.bias",
+            "a2c_network.critic_mlp.2.weight": "a2c_network.critic_mlp.2.weight",
+            "a2c_network.critic_mlp.2.bias":   "a2c_network.critic_mlp.2.bias",
+            "a2c_network.critic_mlp.4.weight": "a2c_network.critic_mlp.4.weight",
+            "a2c_network.critic_mlp.4.bias":   "a2c_network.critic_mlp.4.bias",
+            "a2c_network.critic_mlp.6.weight": "a2c_network.critic_mlp.6.weight",
+            "a2c_network.critic_mlp.6.bias":   "a2c_network.critic_mlp.6.bias",
+            "a2c_network.critic_mlp.8.weight": "a2c_network.critic_mlp.8.weight",
+            "a2c_network.critic_mlp.8.bias":   "a2c_network.critic_mlp.8.bias",
+            "a2c_network.critic_mlp.10.weight":"a2c_network.critic_mlp.10.weight",
+            "a2c_network.critic_mlp.10.bias":  "a2c_network.critic_mlp.10.bias",
+
+            "a2c_network.value.weight": "a2c_network.value.weight",
+            "a2c_network.value.bias":   "a2c_network.value.bias",
+
+            "a2c_network._disc_mlp.0.weight": "a2c_network._disc_mlp.0.weight",
+            "a2c_network._disc_mlp.0.bias":   "a2c_network._disc_mlp.0.bias",
+            "a2c_network._disc_mlp.2.weight": "a2c_network._disc_mlp.2.weight",
+            "a2c_network._disc_mlp.2.bias":   "a2c_network._disc_mlp.2.bias",
+            "a2c_network._disc_logits.weight":"a2c_network._disc_logits.weight",
+            "a2c_network._disc_logits.bias":  "a2c_network._disc_logits.bias",
+
+            # actor remap: primitive 0 -> current actor trunk/head
+            "a2c_network.pnn.actors.0.0.weight":  "a2c_network.actor_mlp.0.weight",
+            "a2c_network.pnn.actors.0.0.bias":    "a2c_network.actor_mlp.0.bias",
+            "a2c_network.pnn.actors.0.2.weight":  "a2c_network.actor_mlp.2.weight",
+            "a2c_network.pnn.actors.0.2.bias":    "a2c_network.actor_mlp.2.bias",
+            "a2c_network.pnn.actors.0.4.weight":  "a2c_network.actor_mlp.4.weight",
+            "a2c_network.pnn.actors.0.4.bias":    "a2c_network.actor_mlp.4.bias",
+            "a2c_network.pnn.actors.0.6.weight":  "a2c_network.actor_mlp.6.weight",
+            "a2c_network.pnn.actors.0.6.bias":    "a2c_network.actor_mlp.6.bias",
+            "a2c_network.pnn.actors.0.8.weight":  "a2c_network.actor_mlp.8.weight",
+            "a2c_network.pnn.actors.0.8.bias":    "a2c_network.actor_mlp.8.bias",
+            "a2c_network.pnn.actors.0.10.weight": "a2c_network.actor_mlp.10.weight",
+            "a2c_network.pnn.actors.0.10.bias":   "a2c_network.actor_mlp.10.bias",
+            "a2c_network.pnn.actors.0.12.weight": "a2c_network.mu.weight",
+            "a2c_network.pnn.actors.0.12.bias":   "a2c_network.mu.bias",
+        }
+
+        # ---------------------------------------------------------
+        # 2) load according to mapping, with checks
+        # ---------------------------------------------------------
+        loaded_pairs = []
+        skipped_pairs = []
+
+        for src_key, dst_key in key_map.items():
+            if src_key not in src_state:
+                skipped_pairs.append((src_key, dst_key, "missing_src"))
+                continue
+
+            if dst_key not in dst_state:
+                skipped_pairs.append((src_key, dst_key, "missing_dst"))
+                continue
+
+            if src_state[src_key].shape != dst_state[dst_key].shape:
+                skipped_pairs.append((
+                    src_key, dst_key,
+                    f"shape_mismatch src={tuple(src_state[src_key].shape)} dst={tuple(dst_state[dst_key].shape)}"
+                ))
+                continue
+
+            dst_state[dst_key] = src_state[src_key].clone()
+            loaded_pairs.append((src_key, dst_key, tuple(src_state[src_key].shape)))
+
+        self.model.load_state_dict(dst_state, strict=False)
+
+        self._load_pretrained_stats(ckpt)
+
+        self._pretrained_raw_ckpt = ckpt
+        self._pretrained_model_state = src_state
+        self._pretrained_loaded = True
+
+        print(f"[PHC] Manually loaded param pairs: {len(loaded_pairs)}")
+        for src_key, dst_key, shape in loaded_pairs:
+            print(f"[PHC] loaded  {src_key}  -->  {dst_key}  {shape}")
+
+        if len(skipped_pairs) > 0:
+            print(f"[PHC] Skipped param pairs: {len(skipped_pairs)}")
+            for src_key, dst_key, reason in skipped_pairs:
+                print(f"[PHC] skipped {src_key}  -->  {dst_key}  ({reason})")
+
+        return
+
+    def _try_expand_and_load_running_mean_std(self, module, src_state, module_name="running_mean_std"):
+        """
+        Special-case loader for obs RunningMeanStd when current obs dim > old obs dim.
+
+        Strategy:
+        - copy old prefix stats into the new tensors
+        - leave new extra dims at identity normalization:
+            mean = 0
+            var  = 1
+        - copy scalar counters exactly
+        """
+        if module is None or src_state is None:
+            print(f"[PHC][stats] skip {module_name}: module or src_state is None")
+            return False
+
+        dst_state = module.state_dict()
+
+        # expected vector stats
+        required_vec_keys = ["running_mean", "running_var"]
+        for k in required_vec_keys:
+            if k not in dst_state or k not in src_state:
+                print(f"[PHC][stats] skip {module_name}: missing key '{k}'")
+                return False
+
+        dst_mean = dst_state["running_mean"]
+        dst_var  = dst_state["running_var"]
+        src_mean = src_state["running_mean"]
+        src_var  = src_state["running_var"]
+
+        if src_mean.ndim != 1 or dst_mean.ndim != 1:
+            print(f"[PHC][stats] skip {module_name}: running_mean is not 1D")
+            return False
+
+        if src_var.ndim != 1 or dst_var.ndim != 1:
+            print(f"[PHC][stats] skip {module_name}: running_var is not 1D")
+            return False
+
+        src_dim = src_mean.shape[0]
+        dst_dim = dst_mean.shape[0]
+
+        if src_dim > dst_dim:
+            print(f"[PHC][stats] skip {module_name}: src_dim={src_dim} > dst_dim={dst_dim}")
+            return False
+
+        # start from current dst state, then overwrite prefix
+        load_state = {}
+        for k, dst_v in dst_state.items():
+            if torch.is_tensor(dst_v):
+                load_state[k] = dst_v.clone()
+            else:
+                load_state[k] = dst_v
+
+        # identity normalization for all dims first
+        load_state["running_mean"].zero_()
+        load_state["running_var"].fill_(1.0)
+
+        # copy old prefix
+        load_state["running_mean"][:src_dim] = src_mean.to(device=dst_mean.device, dtype=dst_mean.dtype)
+        load_state["running_var"][:src_dim]  = src_var.to(device=dst_var.device, dtype=dst_var.dtype)
+
+        # copy any scalar/non-vector bookkeeping if shape matches
+        for k, dst_v in dst_state.items():
+            if k in ["running_mean", "running_var"]:
+                continue
+            if k not in src_state:
+                continue
+
+            src_v = src_state[k]
+            if torch.is_tensor(dst_v) and torch.is_tensor(src_v):
+                if tuple(dst_v.shape) == tuple(src_v.shape):
+                    load_state[k] = src_v.to(device=dst_v.device, dtype=dst_v.dtype)
+            else:
+                load_state[k] = src_v
+
+        module.load_state_dict(load_state, strict=False)
+
+        print(
+            f"[PHC][stats] expanded {module_name}: copied prefix {src_dim} -> {dst_dim}, "
+            f"new tail {dst_dim - src_dim} dims set to mean=0 var=1"
+        )
+        return True
+
+    def _try_load_stats_module(self, module, src_state, module_name):
+        """
+        Safely load a normalizer/state module only if the state dict is fully compatible.
+
+        Rule:
+        - all destination keys must exist in source
+        - tensor shapes must match exactly
+        - then load the whole module state
+        - otherwise skip entirely
+        """
+        if module is None:
+            print(f"[PHC][stats] skip {module_name}: module is None")
+            return False
+
+        if src_state is None:
+            print(f"[PHC][stats] skip {module_name}: checkpoint state is None")
+            return False
+
+        dst_state = module.state_dict()
+
+        for k, dst_v in dst_state.items():
+            if k not in src_state:
+                print(f"[PHC][stats] skip {module_name}: missing key '{k}'")
+                return False
+
+            src_v = src_state[k]
+
+            if torch.is_tensor(dst_v) != torch.is_tensor(src_v):
+                print(f"[PHC][stats] skip {module_name}: tensor/non-tensor mismatch at '{k}'")
+                return False
+
+            if torch.is_tensor(dst_v):
+                if tuple(dst_v.shape) != tuple(src_v.shape):
+                    print(
+                        f"[PHC][stats] skip {module_name}: shape mismatch at '{k}', "
+                        f"src={tuple(src_v.shape)} dst={tuple(dst_v.shape)}"
+                    )
+                    return False
+
+        # copy destination-shaped state only
+        load_state = {}
+        for k, dst_v in dst_state.items():
+            src_v = src_state[k]
+            if torch.is_tensor(dst_v):
+                load_state[k] = src_v.to(device=dst_v.device, dtype=dst_v.dtype)
+            else:
+                load_state[k] = src_v
+
+        module.load_state_dict(load_state, strict=True)
+        print(f"[PHC][stats] loaded {module_name}")
+        return True
+
+
+    def _load_pretrained_stats(self, ckpt):
+        # 1) obs normalizer
+        if "running_mean_std" in ckpt and hasattr(self, "running_mean_std"):
+            # fallback: allow 934 -> 945 style expansion
+            self._try_expand_and_load_running_mean_std(
+                self.running_mean_std,
+                ckpt["running_mean_std"],
+                "running_mean_std",
+            )
+        else:
+            print("[PHC][stats] skip running_mean_std: missing in ckpt or agent")
+
+        # 2) AMP input normalizer
+        if self._normalize_amp_input and hasattr(self, "_amp_input_mean_std"):
+            if "amp_input_mean_std" in ckpt:
+                self._try_load_stats_module(
+                    self._amp_input_mean_std,
+                    ckpt["amp_input_mean_std"],
+                    "amp_input_mean_std",
+                )
+            else:
+                print("[PHC][stats] skip amp_input_mean_std: missing in ckpt")
+        else:
+            print("[PHC][stats] skip amp_input_mean_std: not enabled in current run")
+
+        # 3) optional value normalizer
+        if "value_mean_std" in ckpt and hasattr(self, "value_mean_std"):
+            self._try_load_stats_module(
+                self.value_mean_std,
+                ckpt["value_mean_std"],
+                "value_mean_std",
+            )
+
+        # 4) intentionally skip reward normalizer
+        if "reward_mean_std" in ckpt:
+            print("[PHC][stats] skip reward_mean_std intentionally")
+
     def _init_train(self):
         """
         Called once before training begins.
         We populate the demo replay buffer so discriminator immediately sees "real" samples.
         """
         super()._init_train()
+        self._load_pretrained_checkpoint()
         self._init_amp_demo_buf()
         return
 
