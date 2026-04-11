@@ -38,13 +38,6 @@ class HumanoidPHC(Humanoid):
                          device_id=device_id,
                          headless=headless)
 
-        # AMP bodies should match PHC discriminator setup
-        self._amp_key_body_names = cfg["env"].get(
-            "ampKeyBodies",
-            ["R_Ankle", "L_Ankle", "R_Wrist", "L_Wrist"]
-        )
-        self._amp_key_body_ids = self._build_key_body_ids_tensor(self._amp_key_body_names)
-
         self._amp_obs_buf = torch.zeros((self.num_envs, self._num_amp_obs_steps, self._num_amp_obs_per_step), device=self.device, dtype=torch.float)
         self._curr_amp_obs_buf = self._amp_obs_buf[:, 0]
         self._hist_amp_obs_buf = self._amp_obs_buf[:, 1:]
