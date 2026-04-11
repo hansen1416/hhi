@@ -449,7 +449,7 @@ class PHCAgent(common_agent.CommonAgent):
         super().prepare_dataset(batch_dict)
 
         # AMP discriminator batches
-        # shapes are [num_env * horizon_length, 2920]
+        # shapes are [num_env * horizon_length, 1960]
         self.dataset.values_dict['amp_obs'] = batch_dict['amp_obs']
         self.dataset.values_dict['amp_obs_demo'] = batch_dict['amp_obs_demo']
         self.dataset.values_dict['amp_obs_replay'] = batch_dict['amp_obs_replay']
@@ -458,7 +458,7 @@ class PHCAgent(common_agent.CommonAgent):
         self.dataset.values_dict['amp_shape_demo'] = batch_dict['amp_shape_demo']
         self.dataset.values_dict['amp_shape_replay'] = batch_dict['amp_shape_replay']
 
-        # # [num_env * horizon_length, 2920]
+        # # [num_env * horizon_length, 1960]
         # print(self.dataset.values_dict['amp_obs'].shape)
         # print(self.dataset.values_dict['amp_obs_demo'].shape)
         # print(self.dataset.values_dict['amp_obs_replay'].shape)
@@ -466,6 +466,7 @@ class PHCAgent(common_agent.CommonAgent):
         # print(self.dataset.values_dict['amp_shape'].shape)
         # print(self.dataset.values_dict['amp_shape_demo'].shape)
         # print(self.dataset.values_dict['amp_shape_replay'].shape)
+        # exit()
 
         rand_action_mask = batch_dict['rand_action_mask']
         # Mask for eps-greedy losses
@@ -503,7 +504,7 @@ class PHCAgent(common_agent.CommonAgent):
 
         # when sampling from `self._amp_obs_demo_buffer` , 
         # we make sure each of the motion has same gender-beta as `amp_obs`
-        # [num_env * horizon_length, 2920]
+        # [num_env * horizon_length, 1960]
         demo_sample = self._amp_obs_demo_buffer.sample(num_obs_samples)
         batch_dict['amp_obs_demo'] = demo_sample['amp_obs']
         batch_dict['amp_shape_demo'] = demo_sample['amp_shape']
@@ -518,13 +519,14 @@ class PHCAgent(common_agent.CommonAgent):
             batch_dict['amp_obs_replay'] = replay_sample['amp_obs']
             batch_dict['amp_shape_replay'] = replay_sample['amp_shape']
 
-        # [num_env * horizon_length, 2920] for obs; [num_env * horizon_length, 2920] for shape
+        # # [num_env * horizon_length, 1960] for obs; [num_env * horizon_length, 1960] for shape
         # print(batch_dict['amp_obs'].shape)
         # print(batch_dict['amp_shape'].shape)
         # print(batch_dict['amp_obs_demo'].shape)
         # print(batch_dict['amp_shape_demo'].shape)
         # print(batch_dict['amp_obs_replay'].shape)
         # print(batch_dict['amp_shape_replay'].shape)
+        # exit()
 
         self.set_train()
 
@@ -982,11 +984,11 @@ class PHCAgent(common_agent.CommonAgent):
         """
 
         # we have the beta_env information already, maybe just use them
-        # [num_env, 2920]
+        # [num_env, 1960]
         # print(self.vec_env.env.task._betas_env.shape)
         amp_obs_demo, amp_shape = self._fetch_amp_obs_demo()
 
-        # both [num_env * horizon_length, 2920]
+        # both [num_env * horizon_length, 1960]
         amp_obs_demo_flat = self.expand_env_tensor_to_horizon_flat(amp_obs_demo)
         amp_shape_flat = self.expand_env_tensor_to_horizon_flat(amp_shape)
 
@@ -1010,11 +1012,11 @@ class PHCAgent(common_agent.CommonAgent):
 
         # disc-shape-condition
         """
-        # [amp_batch_size, 2920]
+        # [amp_batch_size, 1960]
         # new_amp_obs_demo = self._fetch_amp_obs_demo(self._amp_batch_size)
         new_amp_obs_demo, new_amp_shape = self._fetch_amp_obs_demo()
 
-        # both [num_env * horizon_length, 2920]
+        # both [num_env * horizon_length, 1960]
         amp_obs_demo_flat = self.expand_env_tensor_to_horizon_flat(new_amp_obs_demo)
         new_amp_shape_flat = self.expand_env_tensor_to_horizon_flat(new_amp_shape)
 

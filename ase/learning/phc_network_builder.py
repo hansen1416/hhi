@@ -121,7 +121,7 @@ class PHCBuilder(network_builder.A2CBuilder):
 
             self._shape_dim = 11
 
-            # (2920,) This is the motion feature dimension seen by the discriminator.
+            # (1960,) This is the motion feature dimension seen by the discriminator.
             amp_input_shape = kwargs.get("amp_input_shape")
             # Build discriminator:
             #   amp_obs -> disc_mlp -> disc_logits
@@ -623,7 +623,7 @@ class PHCBuilder(network_builder.A2CBuilder):
 
             Input
             -----
-            input_shape[0] = AMP feature dimension, e.g. 2920
+            input_shape[0] = AMP feature dimension, e.g. 1960
 
             Structure
             ---------

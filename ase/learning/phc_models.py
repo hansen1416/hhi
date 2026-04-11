@@ -28,7 +28,7 @@ class ModelPHCContinuous(ModelA2CContinuousLogStd):
                 # disc-shape-condition
 
                 # the current fake branch from the latest rollout.
-                # [amp_minibatch_size, 2920], [amp_minibatch_size, 11] 
+                # [amp_minibatch_size, 1960], [amp_minibatch_size, 11] 
                 disc_agent_logit = self.a2c_network.eval_disc(input_dict['amp_obs'], input_dict['amp_shape'])
                 result["disc_agent_logit"] = disc_agent_logit
 
@@ -36,13 +36,13 @@ class ModelPHCContinuous(ModelA2CContinuousLogStd):
                 # past agent-generated AMP observations kept in _amp_replay_buffer 
                 # so the discriminator does not train only against the latest rollout, 
                 # which improves stability and reduces oscillation.
-                # [amp_minibatch_size, 2920], [amp_minibatch_size, 11]
+                # [amp_minibatch_size, 1960], [amp_minibatch_size, 11]
                 disc_agent_replay_logit = self.a2c_network.eval_disc(input_dict['amp_obs_replay'], input_dict['amp_shape_replay'])
                 result["disc_agent_replay_logit"] = disc_agent_replay_logit
 
                 # the real discriminator branch: 
                 # real motion windows sampled from the motion library and stored in _amp_obs_demo_buffer
-                # [amp_minibatch_size, 2920], [amp_minibatch_size, 11]
+                # [amp_minibatch_size, 1960], [amp_minibatch_size, 11]
                 disc_demo_logit = self.a2c_network.eval_disc(input_dict['amp_obs_demo'], input_dict['amp_shape_demo'])
                 result["disc_demo_logit"] = disc_demo_logit
 
