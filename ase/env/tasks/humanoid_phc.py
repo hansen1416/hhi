@@ -38,6 +38,13 @@ class HumanoidPHC(Humanoid):
                          device_id=device_id,
                          headless=headless)
 
+        # AMP bodies should match PHC discriminator setup
+        self._amp_key_body_names = cfg["env"].get(
+            "ampKeyBodies",
+            ["R_Ankle", "L_Ankle", "R_Wrist", "L_Wrist"]
+        )
+        self._amp_key_body_ids = self._build_key_body_ids_tensor(self._amp_key_body_names)
+
         self._amp_obs_buf = torch.zeros((self.num_envs, self._num_amp_obs_steps, self._num_amp_obs_per_step), device=self.device, dtype=torch.float)
         self._curr_amp_obs_buf = self._amp_obs_buf[:, 0]
         self._hist_amp_obs_buf = self._amp_obs_buf[:, 1:]
@@ -181,6 +188,34 @@ class HumanoidPHC(Humanoid):
 
         return amp_obs_demo_flat, amp_shape_demo
 
+    # def build_amp_obs_demo(self, motion_ids, motion_times0):
+    #     dt = self.dt
+
+    #     motion_ids = torch.tile(motion_ids.unsqueeze(-1), [1, self._num_amp_obs_steps])
+    #     motion_times = motion_times0.unsqueeze(-1)
+    #     time_steps = -dt * torch.arange(0, self._num_amp_obs_steps, device=self.device)
+    #     motion_times = motion_times + time_steps
+
+    #     motion_ids = motion_ids.view(-1)
+    #     motion_times = motion_times.view(-1)
+        
+    #     motion_res = self._motion_lib.get_motion_state(motion_ids, motion_times)
+
+    #     root_pos, root_rot, dof_pos, root_vel, root_ang_vel, dof_vel, key_pos \
+    #            = (motion_res["root_pos"],
+    #             motion_res["root_rot"],
+    #             motion_res["dof_pos"],
+    #             motion_res["root_vel"],
+    #             motion_res["root_ang_vel"],
+    #             motion_res["dof_vel"],
+    #             motion_res["key_pos"])
+
+    #     amp_obs_demo = build_amp_observations(root_pos, root_rot, root_vel, root_ang_vel,
+    #                                           dof_pos, dof_vel, key_pos,
+    #                                           self._local_root_obs, self._root_height_obs,
+    #                                           self._dof_obs_size, self._dof_offsets)
+    #     return amp_obs_demo
+
     def build_amp_obs_demo(self, motion_ids, motion_times0):
         dt = self.dt
 
@@ -191,22 +226,40 @@ class HumanoidPHC(Humanoid):
 
         motion_ids = motion_ids.view(-1)
         motion_times = motion_times.view(-1)
-        
+
         motion_res = self._motion_lib.get_motion_state(motion_ids, motion_times)
 
-        root_pos, root_rot, dof_pos, root_vel, root_ang_vel, dof_vel, key_pos \
-               = (motion_res["root_pos"],
-                motion_res["root_rot"],
-                motion_res["dof_pos"],
-                motion_res["root_vel"],
-                motion_res["root_ang_vel"],
-                motion_res["dof_vel"],
-                motion_res["key_pos"])
+        root_pos, root_rot, dof_pos, root_vel, root_ang_vel, dof_vel, key_pos = (
+            motion_res["root_pos"],
+            motion_res["root_rot"],
+            motion_res["dof_pos"],
+            motion_res["root_vel"],
+            motion_res["root_ang_vel"],
+            motion_res["dof_vel"],
+            motion_res["key_pos"],
+        )
 
-        amp_obs_demo = build_amp_observations(root_pos, root_rot, root_vel, root_ang_vel,
-                                              dof_pos, dof_vel, key_pos,
-                                              self._local_root_obs, self._root_height_obs,
-                                              self._dof_obs_size, self._dof_offsets)
+        amp_key_body_pos_idx = self._amp_key_body_pos_idx.to(self.device)
+        dof_subset = self.dof_subset.to(self.device)
+        dof_obs_subset = self.dof_obs_subset.to(self.device)
+
+        amp_key_pos = key_pos[:, amp_key_body_pos_idx, :]
+
+        amp_obs_demo = build_amp_observations(
+            root_pos,
+            root_rot,
+            root_vel,
+            root_ang_vel,
+            dof_pos,
+            dof_vel,
+            amp_key_pos,
+            dof_subset,
+            dof_obs_subset,
+            self._local_root_obs,
+            self._amp_root_height_obs,
+            self._dof_obs_size,
+            self._dof_offsets,
+        )
         return amp_obs_demo
 
     def _build_amp_obs_demo_buf(self, num_samples):
@@ -215,66 +268,169 @@ class HumanoidPHC(Humanoid):
         
     def _setup_character_props(self, key_bodies):
         super()._setup_character_props(key_bodies)
-        # multi humanoid template change ===============
-        num_key_bodies = len(key_bodies)
 
-        # asset_file.startswith("mjcf/smpl_"), it's a list of asset files
-        # some conditions borrowed from PHC
-        # Use AMP observation version 1 (basic key-body positions only)
+        # -----------------------------
+        # AMP config: keep PHC-compatible
+        # -----------------------------
         self.amp_obs_v = 1
-        # Include root height in AMP observations
         self._amp_root_height_obs = True
-        # Use a subset of degrees of freedom instead of all joints
-        self._has_dof_subset = False
-        # Do not include discrete shape parameters
         self._has_shape_obs_disc = False
-        # Do not include discrete limb length/weight features
         self._has_limb_weight_obs_disc = False
 
-        remove_names = ["L_Hand", "R_Hand", "L_Toe", "R_Toe"]
+        # task key bodies stay as-is
+        self._task_key_bodies = key_bodies
+
+        # IMPORTANT:
+        # AMP key bodies should be a small PHC-style set, not all task key bodies.
+        # The exact 4 names should match your PHC config.
+        self._amp_key_bodies = self.cfg["env"].get(
+            "ampKeyBodies",
+            ["L_Wrist", "R_Wrist", "L_Ankle", "R_Ankle"]
+        )
+        num_amp_key_bodies = len(self._amp_key_bodies)
+
+        # PHC-style DOF subset for discriminator/AMP
+        remove_names = {"L_Hand", "R_Hand", "L_Toe", "R_Toe"}
         disc_idxes = []
 
         for idx, name in enumerate(self._dof_names):
-            if not name in remove_names:
+            if name not in remove_names:
                 disc_idxes.append(np.arange(idx * 3, (idx + 1) * 3))
-        
+
         if len(disc_idxes) > 0:
-            self.dof_subset = torch.from_numpy(np.concatenate(disc_idxes)) 
-        else: 
-            torch.tensor([]).long()
+            self.dof_subset = torch.from_numpy(np.concatenate(disc_idxes)).long()
+        else:
+            self.dof_subset = torch.tensor([], dtype=torch.long)
+
+        disc_obs_idxes = []
+
+        for idx, name in enumerate(self._dof_names):
+            if name not in remove_names:
+                disc_obs_idxes.append(np.arange(idx * 6, (idx + 1) * 6))
+
+        if len(disc_obs_idxes) > 0:
+            self.dof_obs_subset = torch.from_numpy(np.concatenate(disc_obs_idxes)).long()
+        else:
+            self.dof_obs_subset = torch.tensor([], dtype=torch.long)
+
+        # AMP rigid-body ids in simulator order
+        self._amp_key_body_ids = torch.tensor(
+            [self._body_names.index(name) for name in self._amp_key_bodies],
+            dtype=torch.long
+        )
+
+        # AMP indices inside motion_res["key_pos"] order
+        # motion_res["key_pos"] still follows cfg["env"]["keyBodies"]
+        self._amp_key_body_pos_idx = torch.tensor(
+            [key_bodies.index(name) for name in self._amp_key_bodies],
+            dtype=torch.long
+        )
+
+        # THIS was the main issue in your code
+        self._has_dof_subset = True
+
+        num_amp_joints = len(self.dof_subset) // 3
+        amp_dof_obs_size = num_amp_joints * 6
+        amp_dof_vel_size = num_amp_joints * 3
 
         if self.amp_obs_v == 1:
-            self._num_amp_obs_per_step = 13 + self._dof_obs_size + len(self._dof_names) * 3 + 3 * num_key_bodies  # [root_h, root_rot, root_vel, root_ang_vel, dof_pos, dof_vel, key_body_pos]
+            self._num_amp_obs_per_step = (
+                13
+                + amp_dof_obs_size
+                + amp_dof_vel_size
+                + 3 * num_amp_key_bodies
+            )
         else:
-            self._num_amp_obs_per_step = 13 + self._dof_obs_size + len(self._dof_names) * 3 + 6 * num_key_bodies  # [root_h, root_rot, root_vel, root_ang_vel, dof_pos, dof_vel, key_body_pos, key_body_vel]
+            self._num_amp_obs_per_step = (
+                13
+                + amp_dof_obs_size
+                + amp_dof_vel_size
+                + 6 * num_amp_key_bodies
+            )
 
         if not self._amp_root_height_obs:
             self._num_amp_obs_per_step -= 1
 
-        if self._has_dof_subset:
-            self._num_amp_obs_per_step -= (6 + 3) * int((len(self._dof_names) * 3 - len(self.dof_subset)) / 3)
-
         if self._has_shape_obs_disc:
-            # todo-disc-shape-condition, change this flag and pass gender,beta to amp_obs
             self._num_amp_obs_per_step += 11
-        
+
         if self._has_limb_weight_obs_disc:
             self._num_amp_obs_per_step += 10
 
         # 196
-        # print(self._num_amp_obs_per_step)
+        print("AMP per-step obs =", self._num_amp_obs_per_step)
 
-        # ---- target motion observation ----
+        # -----------------------------
+        # task observation stays unchanged
+        # -----------------------------
         self._enable_task_obs = True
         self._task_obs_v = 7
-        # self._num_task_obs = 9 * len(key_bodies)   # [Δp_local, Δv_local, p*_rel_local]
-
-        # 576 = PHC’s task / imitation observation under env_im_pnn
-        # ∣track_bodies∣×num_traj_samples×24 = 24×1×24=576.
         self._num_traj_samples = 1
-        self._num_task_obs = 24 * num_key_bodies * self._num_traj_samples
 
+        num_key_bodies = len(key_bodies)
+        # 576
+        self._num_task_obs = 24 * num_key_bodies * self._num_traj_samples
+        # 945
         self._num_obs += self._num_task_obs
+
+        # # multi humanoid template change ===============
+        # num_key_bodies = len(key_bodies)
+
+        # # asset_file.startswith("mjcf/smpl_"), it's a list of asset files
+        # # some conditions borrowed from PHC
+        # # Use AMP observation version 1 (basic key-body positions only)
+        # self.amp_obs_v = 1
+        # # Include root height in AMP observations
+        # self._amp_root_height_obs = True
+        # # Use a subset of degrees of freedom instead of all joints
+        # self._has_dof_subset = False
+        # # Do not include discrete shape parameters
+        # self._has_shape_obs_disc = False
+        # # Do not include discrete limb length/weight features
+        # self._has_limb_weight_obs_disc = False
+
+        # remove_names = ["L_Hand", "R_Hand", "L_Toe", "R_Toe"]
+        # disc_idxes = []
+
+        # for idx, name in enumerate(self._dof_names):
+        #     if not name in remove_names:
+        #         disc_idxes.append(np.arange(idx * 3, (idx + 1) * 3))
+        
+        # if len(disc_idxes) > 0:
+        #     self.dof_subset = torch.from_numpy(np.concatenate(disc_idxes)) 
+        # else: 
+        #     self.dof_subset = torch.tensor([]).long()
+
+        # if self.amp_obs_v == 1:
+        #     self._num_amp_obs_per_step = 13 + self._dof_obs_size + len(self._dof_names) * 3 + 3 * num_key_bodies  # [root_h, root_rot, root_vel, root_ang_vel, dof_pos, dof_vel, key_body_pos]
+        # else:
+        #     self._num_amp_obs_per_step = 13 + self._dof_obs_size + len(self._dof_names) * 3 + 6 * num_key_bodies  # [root_h, root_rot, root_vel, root_ang_vel, dof_pos, dof_vel, key_body_pos, key_body_vel]
+
+        # if not self._amp_root_height_obs:
+        #     self._num_amp_obs_per_step -= 1
+
+        # if self._has_dof_subset:
+        #     self._num_amp_obs_per_step -= (6 + 3) * int((len(self._dof_names) * 3 - len(self.dof_subset)) / 3)
+
+        # if self._has_shape_obs_disc:
+        #     # todo-disc-shape-condition, change this flag and pass gender,beta to amp_obs
+        #     self._num_amp_obs_per_step += 11
+        
+        # if self._has_limb_weight_obs_disc:
+        #     self._num_amp_obs_per_step += 10
+
+
+        # # ---- target motion observation ----
+        # self._enable_task_obs = True
+        # self._task_obs_v = 7
+        # # self._num_task_obs = 9 * len(key_bodies)   # [Δp_local, Δv_local, p*_rel_local]
+
+        # # 576 = PHC’s task / imitation observation under env_im_pnn
+        # # ∣track_bodies∣×num_traj_samples×24 = 24×1×24=576.
+        # self._num_traj_samples = 1
+        # self._num_task_obs = 24 * num_key_bodies * self._num_traj_samples
+
+        # self._num_obs += self._num_task_obs
 
         # here self._num_obs == 585. 
         # 1 + len(self._body_names) * (3 + 6 + 3 + 3) - 3 + 9 * len(key_bodies)
@@ -510,6 +666,34 @@ class HumanoidPHC(Humanoid):
         self._hist_amp_obs_buf[env_ids] = curr_amp_obs
         return
 
+    # def _init_amp_obs_ref(self, env_ids, motion_ids, motion_times):
+    #     dt = self.dt
+    #     motion_ids = torch.tile(motion_ids.unsqueeze(-1), [1, self._num_amp_obs_steps - 1])
+    #     motion_times = motion_times.unsqueeze(-1)
+    #     time_steps = -dt * (torch.arange(0, self._num_amp_obs_steps - 1, device=self.device) + 1)
+    #     motion_times = motion_times + time_steps
+
+    #     motion_ids = motion_ids.view(-1)
+    #     motion_times = motion_times.view(-1)
+        
+    #     motion_res = self._motion_lib.get_motion_state(motion_ids, motion_times)
+
+    #     root_pos, root_rot, dof_pos, root_vel, root_ang_vel, dof_vel, key_pos \
+    #            = (motion_res["root_pos"],
+    #             motion_res["root_rot"],
+    #             motion_res["dof_pos"],
+    #             motion_res["root_vel"],
+    #             motion_res["root_ang_vel"],
+    #             motion_res["dof_vel"],
+    #             motion_res["key_pos"])
+
+    #     amp_obs_demo = build_amp_observations(root_pos, root_rot, root_vel, root_ang_vel, 
+    #                                           dof_pos, dof_vel, key_pos, 
+    #                                           self._local_root_obs, self._root_height_obs, 
+    #                                           self._dof_obs_size, self._dof_offsets)
+    #     self._hist_amp_obs_buf[env_ids] = amp_obs_demo.view(self._hist_amp_obs_buf[env_ids].shape)
+    #     return
+
     def _init_amp_obs_ref(self, env_ids, motion_ids, motion_times):
         dt = self.dt
         motion_ids = torch.tile(motion_ids.unsqueeze(-1), [1, self._num_amp_obs_steps - 1])
@@ -519,22 +703,41 @@ class HumanoidPHC(Humanoid):
 
         motion_ids = motion_ids.view(-1)
         motion_times = motion_times.view(-1)
-        
+
         motion_res = self._motion_lib.get_motion_state(motion_ids, motion_times)
 
-        root_pos, root_rot, dof_pos, root_vel, root_ang_vel, dof_vel, key_pos \
-               = (motion_res["root_pos"],
-                motion_res["root_rot"],
-                motion_res["dof_pos"],
-                motion_res["root_vel"],
-                motion_res["root_ang_vel"],
-                motion_res["dof_vel"],
-                motion_res["key_pos"])
+        root_pos, root_rot, dof_pos, root_vel, root_ang_vel, dof_vel, key_pos = (
+            motion_res["root_pos"],
+            motion_res["root_rot"],
+            motion_res["dof_pos"],
+            motion_res["root_vel"],
+            motion_res["root_ang_vel"],
+            motion_res["dof_vel"],
+            motion_res["key_pos"],
+        )
 
-        amp_obs_demo = build_amp_observations(root_pos, root_rot, root_vel, root_ang_vel, 
-                                              dof_pos, dof_vel, key_pos, 
-                                              self._local_root_obs, self._root_height_obs, 
-                                              self._dof_obs_size, self._dof_offsets)
+        amp_key_body_pos_idx = self._amp_key_body_pos_idx.to(self.device)
+        dof_subset = self.dof_subset.to(self.device)
+        dof_obs_subset = self.dof_obs_subset.to(self.device)
+
+        amp_key_pos = key_pos[:, amp_key_body_pos_idx, :]
+
+        amp_obs_demo = build_amp_observations(
+            root_pos,
+            root_rot,
+            root_vel,
+            root_ang_vel,
+            dof_pos,
+            dof_vel,
+            amp_key_pos,
+            dof_subset,
+            dof_obs_subset,
+            self._local_root_obs,
+            self._amp_root_height_obs,
+            self._dof_obs_size,
+            self._dof_offsets,
+        )
+
         self._hist_amp_obs_buf[env_ids] = amp_obs_demo.view(self._hist_amp_obs_buf[env_ids].shape)
         return
 
@@ -547,24 +750,65 @@ class HumanoidPHC(Humanoid):
                 self._amp_obs_buf[env_ids, i + 1] = self._amp_obs_buf[env_ids, i]
         return
     
+    # def _compute_amp_observations(self, env_ids=None):
+    #     key_body_pos = self._rigid_body_pos[:, self._key_body_ids, :]
+    #     if (env_ids is None):
+    #         self._curr_amp_obs_buf[:] = build_amp_observations(self._rigid_body_pos[:, 0, :],
+    #                                                            self._rigid_body_rot[:, 0, :],
+    #                                                            self._rigid_body_vel[:, 0, :],
+    #                                                            self._rigid_body_ang_vel[:, 0, :],
+    #                                                            self._dof_pos, self._dof_vel, key_body_pos,
+    #                                                            self._local_root_obs, self._root_height_obs, 
+    #                                                            self._dof_obs_size, self._dof_offsets)
+    #     else:
+    #         self._curr_amp_obs_buf[env_ids] = build_amp_observations(self._rigid_body_pos[env_ids][:, 0, :],
+    #                                                                self._rigid_body_rot[env_ids][:, 0, :],
+    #                                                                self._rigid_body_vel[env_ids][:, 0, :],
+    #                                                                self._rigid_body_ang_vel[env_ids][:, 0, :],
+    #                                                                self._dof_pos[env_ids], self._dof_vel[env_ids], key_body_pos[env_ids],
+    #                                                                self._local_root_obs, self._root_height_obs, 
+    #                                                                self._dof_obs_size, self._dof_offsets)
+    #     return
+
     def _compute_amp_observations(self, env_ids=None):
-        key_body_pos = self._rigid_body_pos[:, self._key_body_ids, :]
-        if (env_ids is None):
-            self._curr_amp_obs_buf[:] = build_amp_observations(self._rigid_body_pos[:, 0, :],
-                                                               self._rigid_body_rot[:, 0, :],
-                                                               self._rigid_body_vel[:, 0, :],
-                                                               self._rigid_body_ang_vel[:, 0, :],
-                                                               self._dof_pos, self._dof_vel, key_body_pos,
-                                                               self._local_root_obs, self._root_height_obs, 
-                                                               self._dof_obs_size, self._dof_offsets)
+        amp_key_body_ids = self._amp_key_body_ids.to(self.device)
+        dof_subset = self.dof_subset.to(self.device)
+        dof_obs_subset = self.dof_obs_subset.to(self.device)
+
+        key_body_pos = self._rigid_body_pos[:, amp_key_body_ids, :]
+
+        if env_ids is None:
+            self._curr_amp_obs_buf[:] = build_amp_observations(
+                self._rigid_body_pos[:, 0, :],
+                self._rigid_body_rot[:, 0, :],
+                self._rigid_body_vel[:, 0, :],
+                self._rigid_body_ang_vel[:, 0, :],
+                self._dof_pos,
+                self._dof_vel,
+                key_body_pos,
+                dof_subset,
+                dof_obs_subset,
+                self._local_root_obs,
+                self._amp_root_height_obs,
+                self._dof_obs_size,
+                self._dof_offsets,
+            )
         else:
-            self._curr_amp_obs_buf[env_ids] = build_amp_observations(self._rigid_body_pos[env_ids][:, 0, :],
-                                                                   self._rigid_body_rot[env_ids][:, 0, :],
-                                                                   self._rigid_body_vel[env_ids][:, 0, :],
-                                                                   self._rigid_body_ang_vel[env_ids][:, 0, :],
-                                                                   self._dof_pos[env_ids], self._dof_vel[env_ids], key_body_pos[env_ids],
-                                                                   self._local_root_obs, self._root_height_obs, 
-                                                                   self._dof_obs_size, self._dof_offsets)
+            self._curr_amp_obs_buf[env_ids] = build_amp_observations(
+                self._rigid_body_pos[env_ids][:, 0, :],
+                self._rigid_body_rot[env_ids][:, 0, :],
+                self._rigid_body_vel[env_ids][:, 0, :],
+                self._rigid_body_ang_vel[env_ids][:, 0, :],
+                self._dof_pos[env_ids],
+                self._dof_vel[env_ids],
+                key_body_pos[env_ids],
+                dof_subset,
+                dof_obs_subset,
+                self._local_root_obs,
+                self._amp_root_height_obs,
+                self._dof_obs_size,
+                self._dof_offsets,
+            )
         return
 
     # ---- target motion observation ----
@@ -685,40 +929,114 @@ class HumanoidPHC(Humanoid):
 ###=========================jit functions=========================###
 #####################################################################
 
+# @torch.jit.script
+# def build_amp_observations(root_pos, root_rot, root_vel, root_ang_vel, dof_pos, dof_vel, key_body_pos, 
+#                            local_root_obs, root_height_obs, dof_obs_size, dof_offsets):
+#     # type: (Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, bool, bool, int, List[int]) -> Tensor
+#     root_h = root_pos[:, 2:3]
+#     heading_rot = torch_utils.calc_heading_quat_inv(root_rot)
+
+#     if (local_root_obs):
+#         root_rot_obs = quat_mul(heading_rot, root_rot)
+#     else:
+#         root_rot_obs = root_rot
+#     root_rot_obs = torch_utils.quat_to_tan_norm(root_rot_obs)
+    
+#     if (not root_height_obs):
+#         root_h_obs = torch.zeros_like(root_h)
+#     else:
+#         root_h_obs = root_h
+    
+#     local_root_vel = quat_rotate(heading_rot, root_vel)
+#     local_root_ang_vel = quat_rotate(heading_rot, root_ang_vel)
+
+#     root_pos_expand = root_pos.unsqueeze(-2)
+#     local_key_body_pos = key_body_pos - root_pos_expand
+    
+#     heading_rot_expand = heading_rot.unsqueeze(-2)
+#     heading_rot_expand = heading_rot_expand.repeat((1, local_key_body_pos.shape[1], 1))
+#     flat_end_pos = local_key_body_pos.view(local_key_body_pos.shape[0] * local_key_body_pos.shape[1], local_key_body_pos.shape[2])
+#     flat_heading_rot = heading_rot_expand.view(heading_rot_expand.shape[0] * heading_rot_expand.shape[1], 
+#                                                heading_rot_expand.shape[2])
+#     local_end_pos = quat_rotate(flat_heading_rot, flat_end_pos)
+#     flat_local_key_pos = local_end_pos.view(local_key_body_pos.shape[0], local_key_body_pos.shape[1] * local_key_body_pos.shape[2])
+    
+#     dof_obs = dof_to_obs(dof_pos, dof_obs_size, dof_offsets)
+#     obs = torch.cat((root_h_obs, root_rot_obs, local_root_vel, local_root_ang_vel, dof_obs, dof_vel, flat_local_key_pos), dim=-1)
+#     return obs
+
 @torch.jit.script
-def build_amp_observations(root_pos, root_rot, root_vel, root_ang_vel, dof_pos, dof_vel, key_body_pos, 
-                           local_root_obs, root_height_obs, dof_obs_size, dof_offsets):
-    # type: (Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, bool, bool, int, List[int]) -> Tensor
+def build_amp_observations(
+    root_pos,
+    root_rot,
+    root_vel,
+    root_ang_vel,
+    dof_pos,
+    dof_vel,
+    key_body_pos,
+    dof_subset,
+    dof_obs_subset,
+    local_root_obs,
+    root_height_obs,
+    dof_obs_size,
+    dof_offsets
+):
+    # type: (Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, bool, bool, int, List[int]) -> Tensor
     root_h = root_pos[:, 2:3]
     heading_rot = torch_utils.calc_heading_quat_inv(root_rot)
 
-    if (local_root_obs):
+    if local_root_obs:
         root_rot_obs = quat_mul(heading_rot, root_rot)
     else:
         root_rot_obs = root_rot
     root_rot_obs = torch_utils.quat_to_tan_norm(root_rot_obs)
-    
-    if (not root_height_obs):
+
+    if not root_height_obs:
         root_h_obs = torch.zeros_like(root_h)
     else:
         root_h_obs = root_h
-    
+
     local_root_vel = quat_rotate(heading_rot, root_vel)
     local_root_ang_vel = quat_rotate(heading_rot, root_ang_vel)
 
     root_pos_expand = root_pos.unsqueeze(-2)
     local_key_body_pos = key_body_pos - root_pos_expand
-    
+
     heading_rot_expand = heading_rot.unsqueeze(-2)
     heading_rot_expand = heading_rot_expand.repeat((1, local_key_body_pos.shape[1], 1))
-    flat_end_pos = local_key_body_pos.view(local_key_body_pos.shape[0] * local_key_body_pos.shape[1], local_key_body_pos.shape[2])
-    flat_heading_rot = heading_rot_expand.view(heading_rot_expand.shape[0] * heading_rot_expand.shape[1], 
-                                               heading_rot_expand.shape[2])
+
+    flat_end_pos = local_key_body_pos.view(
+        local_key_body_pos.shape[0] * local_key_body_pos.shape[1],
+        local_key_body_pos.shape[2]
+    )
+    flat_heading_rot = heading_rot_expand.view(
+        heading_rot_expand.shape[0] * heading_rot_expand.shape[1],
+        heading_rot_expand.shape[2]
+    )
+
     local_end_pos = quat_rotate(flat_heading_rot, flat_end_pos)
-    flat_local_key_pos = local_end_pos.view(local_key_body_pos.shape[0], local_key_body_pos.shape[1] * local_key_body_pos.shape[2])
-    
-    dof_obs = dof_to_obs(dof_pos, dof_obs_size, dof_offsets)
-    obs = torch.cat((root_h_obs, root_rot_obs, local_root_vel, local_root_ang_vel, dof_obs, dof_vel, flat_local_key_pos), dim=-1)
+    flat_local_key_pos = local_end_pos.view(
+        local_key_body_pos.shape[0],
+        local_key_body_pos.shape[1] * local_key_body_pos.shape[2]
+    )
+
+    # build full DOF obs first, then subset
+    full_dof_obs = dof_to_obs(dof_pos, dof_obs_size, dof_offsets)
+    dof_obs = full_dof_obs[:, dof_obs_subset]
+    dof_vel_sub = dof_vel[:, dof_subset]
+
+    obs = torch.cat(
+        (
+            root_h_obs,
+            root_rot_obs,
+            local_root_vel,
+            local_root_ang_vel,
+            dof_obs,
+            dof_vel_sub,
+            flat_local_key_pos,
+        ),
+        dim=-1,
+    )
     return obs
 
 # ---- target motion observation ----
