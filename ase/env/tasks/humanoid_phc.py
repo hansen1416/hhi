@@ -151,8 +151,8 @@ class HumanoidPHC(Humanoid):
             self._build_amp_obs_demo_buf(self.num_envs)
         else:
             assert(self._amp_obs_demo_buf.shape[0] == self.num_envs)
-        # typical self._amp_obs_demo_buf shape, [1, 10, 292]
-        # 1 = num_samples; 10 = self._num_amp_obs_steps; 292 = self._num_amp_obs_per_step
+        # typical self._amp_obs_demo_buf shape, [1, 10, 196]
+        # 1 = num_samples; 10 = self._num_amp_obs_steps; 196 = self._num_amp_obs_per_step
 
         gender_beta_key = []
 
@@ -168,13 +168,13 @@ class HumanoidPHC(Humanoid):
         motion_times0 = self._motion_lib.sample_time(motion_ids, truncate_time=truncate_time)
         motion_times0 += truncate_time
 
-        # [num_envs x 10, 292]
+        # [num_envs x 10, 196]
         amp_obs_demo = self.build_amp_obs_demo(motion_ids, motion_times0)
 
-        # [num_envs, 10, 292]
+        # [num_envs, 10, 196]
         self._amp_obs_demo_buf[:] = amp_obs_demo.view(self._amp_obs_demo_buf.shape)
 
-        # [num_envs, 2920]
+        # [num_envs, 1960]
         amp_obs_demo_flat = self._amp_obs_demo_buf.view(-1, self.get_num_amp_obs())
 
         amp_shape_demo = self._motion_lib.get_motion_shape(motion_ids)
