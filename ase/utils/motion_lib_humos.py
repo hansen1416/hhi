@@ -7,6 +7,8 @@ from enum import Enum
 
 sys.path.append(os.getcwd())
 
+import io
+import contextlib
 import numpy as np
 from tqdm import tqdm
 import random
@@ -305,7 +307,9 @@ class MotionLibHUMOS():
 
             # todo why there is still some of them with wrong offset height?
             # maybe we should use the rigid body position instead of the SMPL mesh, they are not quit the same, are they?
-            mesh_parser = SMPL_Parser(model_path=SMPL_DATA_DIR, gender=gender_str, betas=betas)
+            with contextlib.redirect_stdout(io.StringIO()):
+
+                mesh_parser = SMPL_Parser(model_path=SMPL_DATA_DIR, gender=gender_str, betas=betas)
 
             height_tolorance = 0.02
             vertices_curr, joints_curr = mesh_parser.get_joints_verts(pose_aa[:frame_check], betas[None,], trans[:frame_check])
