@@ -1164,7 +1164,7 @@ class PHCAgent(common_agent.CommonAgent):
         We populate the demo replay buffer so discriminator immediately sees "real" samples.
         """
         super()._init_train()
-        self._load_pretrained_checkpoint()
+        # self._load_pretrained_checkpoint()
         self._init_amp_demo_buf()
         return
 
