@@ -11,9 +11,9 @@ mkdir -p output artifacts phc_models && \
 chmod -R 777 output artifacts && \
 apt update && apt install -y zip unzip
 
-scp -i ~/.ssh/id_ed25519 /home/hlz/datasets/humos_results.zip root@65.108.32.168:/home/hhi
-scp -i ~/.ssh/id_ed25519 /home/hlz/datasets/smpl_model.zip  root@65.108.32.168:/home/hhi
-scp -i ~/.ssh/id_ed25519 /home/hlz/repos/hhi/phc_models/phc_3_Humanoid.pth  root@65.108.32.168:/home/hhi/phc_models/phc_3_Humanoid.pth
+scp -i ~/.ssh/id_ed25519 /home/hlz/datasets/humos_results.zip root@95.133.252.146:/home/hhi && \
+scp -i ~/.ssh/id_ed25519 /home/hlz/datasets/smpl_model.zip  root@95.133.252.146:/home/hhi && \
+scp -i ~/.ssh/id_ed25519 /home/hlz/repos/hhi/phc_models/phc_3_Humanoid.pth  root@95.133.252.146:/home/hhi/phc_models/phc_3_Humanoid.pth
 
 unzip humos_results.zip
 unzip smpl_model.zip

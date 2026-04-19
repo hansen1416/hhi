@@ -236,6 +236,8 @@ def main():
 
         cfg_train['params']['load_path'] = load_path
 
+    # cfg_train['params']['load_path'] = "/home/gymuser/hhi/hhi_film.pth"
+
     cfg_train['params']['seed'] = set_seed(cfg_train['params'].get("seed", -1), cfg_train['params'].get("torch_deterministic", False))
 
     if args.horovod:

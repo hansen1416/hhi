@@ -21,6 +21,12 @@ python ase/run.py --test --task HumanoidPHC --num_envs 16 --cfg_env ase/data/cfg
 
 python ase/run.py --test --task HumanoidPHC --num_envs 16 --cfg_env ase/data/cfg/humanoid_phc.yaml --cfg_train ase/data/cfg/train/rlg/phc_humanoid.yaml --motion_file /home/hlz/datasets/humos_results_test --checkpoint /home/hlz/Documents/transfer-learning-1motion-128shapes/hhi_film.pth
 
+# This is the lates, looks pretty solid, only a bit twitching
+`
+python ase/run.py --test --task HumanoidPHC --num_envs 16 --cfg_env ase/data/cfg/humanoid_phc.yaml --cfg_train ase/data/cfg/train/rlg/phc_humanoid.yaml --motion_file /home/hlz/datasets/humos_results_test --checkpoint /home/hlz/Downloads/hhi_film_0419.pth
+`
+
+
 ## Visual HUMOS results in PHC format
 
 `
