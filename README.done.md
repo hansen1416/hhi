@@ -188,3 +188,38 @@ Verified the reward is maximum when reset the humanoid.
 [9]: https://github.com/hansen1416/hhi/commits/main/ase/utils/motion_lib_humos.py "History for ase/utils/motion_lib_humos.py - hansen1416/hhi · GitHub"
 [10]: https://github.com/hansen1416/hhi/blob/main/ase/data/cfg/train/rlg/phc_humanoid.yaml "hhi/ase/data/cfg/train/rlg/phc_humanoid.yaml at main · hansen1416/hhi · GitHub"
 [11]: https://github.com/hansen1416/hhi/commits/main/ "Commits · hansen1416/hhi · GitHub"
+
+8. Gneerate humos results. 
+  run `python humos/infer.py --cfg humos/configs/cfg_template_test.yml`;
+  It will read from "humos/annotations/humanml3d/annotations_processed.json";
+  all of "train", "val", "test", 22459 motions sequences;
+
+  Save the results to `gdrive:humos_output`
+
+  $ rclone size gdrive:humos_output
+  Total objects: 22.459k (22459)
+  Total size: 778.054 GiB (835428739234 Byte)
+  
+  Each motion will have 128 variations, male/female * 64 body shapes;
+  The 64 body shapes are evenly spreaded between -3.0 and 3.0 (/home/hlz/repos/SMPLSim/run.py);
+
+9. Process humos results
+
+  `/home/hlz/repos/PHC/cmd/list_all_humos.sh` will save all filenames in `gdrive:humos_output` to local file `/home/hlz/repos/PHC/cmd/all_humos_files.txt`
+
+  `/home/hlz/repos/PHC/cmd/split_humos_files.sh` split them to 4 parts
+
+  # To copy them from gdrive to local:
+
+  PART=4 && rclone copy gdrive:humos_output /home/hlz/datasets/humos_output_part${PART} --files-from=/home/hlz/repos/PHC/cmd/all_humos_part${PART}.txt --progress --transfers=32 --checkers=64 --drive-chunk-size=256M --fast-list
+
+  # Command to to process them and save to potable drive.
+
+  `cd /home/hlz/repos/PHC`   # or wherever your PHC fork lives
+  # processes humos_output_part2 → humos_phc_results_part2
+  `python scripts/humos2phc_data_gpu.py 2`     
+  # processes part 3, etc.
+  `python scripts/humos2phc_data_gpu.py 3`
+
+10. figure a fast way to upload humos_phc_results to gdrive
+  
