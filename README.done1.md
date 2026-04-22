@@ -1,3 +1,5 @@
+## This part is mostly about data processing, smoke run
+
 1. Introduce betas into the observations
     - allow env load multiple humanoid models, refer to code in `# multi humanoid template change ===============` in ase/env/tasks/humanoid_amp.py and ase/env/tasks/humanoid.py
     - load beta into observation , refer to code in `# load beta into observation ===============` in ase/env/tasks/humanoid_amp.py and ase/env/tasks/humanoid.py
