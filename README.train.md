@@ -5,7 +5,7 @@ python ase/run.py --task HumanoidPHC --cfg_env ase/data/cfg/humanoid_phc.yaml --
 `
 
 `
-python ase/run.py --task HumanoidPHC --cfg_env ase/data/cfg/humanoid_phc.yaml --cfg_train ase/data/cfg/train/rlg/phc_humanoid.yaml --motion_file /home/hlz/datasets/humos_results/000005_female_0e26b88d.pkl --headless
+python ase/run.py --task HumanoidPHC --cfg_env ase/data/cfg/humanoid_phc.yaml --cfg_train ase/data/cfg/train/rlg/phc_humanoid.yaml --motion_file /home/hlz/datasets/humos_results/000000_female_42909c1b.pkl --headless
 `
 --
 
