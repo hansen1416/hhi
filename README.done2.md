@@ -35,3 +35,33 @@ Normalize each feature to [0, 1] across the whole dataset.
 Compute scalar Difficulty Score:$$\text{difficulty\_score} = 0.4 \cdot \text{norm(max\_root\_hvel)} + 0.3 \cdot \text{norm(flight\_ratio)} + 0.2 \cdot \text{norm(max\_dof\_vel)} + 0.1 \cdot \text{norm(kinetic\_var)}$$(Weights are empirically motivated by PHC hard cases — jumps/spinkicks score high — and can be tuned later.)
 
 This score correlates strongly with imitation difficulty (as validated in the MDS paper) and is trivial to compute in a single pass over your Google Drive files.
+
+We use this script to calculate the difficuty scores, `scripts/compute_difficulty_score.py`
+sort them by difficulties, split to batches of size 128 motions.
+
+2. # Solve jittering, change in this commit: https://github.com/hansen1416/hhi/commit/4e0a7cce9bdf0efca71eb15089263130e90b31c6
+
+    1. **PD gain tuning first**
+    Make the controller more damped: **increase (K_d)** and, if needed, **slightly reduce (K_p)**.
+    Good first try: **(K_d \times 1.5\sim2.0)**, **(K_p \times 0.7\sim0.9)**.
+
+    2. **Then add action filtering**
+    Apply a light EMA on the policy output or PD target:
+    [
+    a_t^{f}=\alpha a_{t-1}^{f}+(1-\alpha)a_t
+    ]
+    Start with **(\alpha=0.8\sim0.9)**.
+
+    3. **Then add a small smoothness reward**
+    Penalize action change, acceleration, or jerk.
+    The simplest is:
+    [
+    r_{\text{smooth}}=-\lambda |a_t-a_{t-1}|^2
+    ]
+    Start with **(\lambda=10^{-3}\sim10^{-2})**.
+
+    So the practical answer is:
+
+    **overdamp the PD controller, low-pass the action/PD target, and add a small action-difference smoothness penalty.**
+
+    In your codebase, **PD control is already the actuation path**, and you currently mainly have the imitation reward plus a power penalty, so the **fastest fix is PD tuning + action filter first, then smoothness reward**.
