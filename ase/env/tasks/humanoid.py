@@ -149,6 +149,15 @@ class Humanoid(BaseTask):
         self._key_body_ids = self._build_key_body_ids_tensor(key_bodies)
         self._contact_body_ids = self._build_contact_body_ids_tensor(contact_bodies)
 
+        # jiter fix 0423 =======================
+        self.action_filter_alpha = self.cfg["env"].get("actionFilterAlpha", 0.85)
+        self._filtered_actions = torch.zeros(
+            (self.num_envs, self.get_action_size()),
+            device=self.device, dtype=torch.float
+        )
+        self.actions_raw = torch.zeros_like(self._filtered_actions)
+        # jiter fix 0423 =======================
+
         return
 
     @staticmethod
@@ -483,6 +492,23 @@ class Humanoid(BaseTask):
         if (self._pd_control):
             dof_prop = self.gym.get_asset_dof_properties(humanoid_asset)
             dof_prop["driveMode"] = gymapi.DOF_MODE_POS
+
+            # jiter fix 0423 =======================
+            # global scaling
+            kp_scale = self.cfg["env"].get("pdStiffnessScale", 0.8)
+            kd_scale = self.cfg["env"].get("pdDampingScale", 1.8)
+
+            dof_prop["stiffness"][:] = dof_prop["stiffness"][:] * kp_scale
+            dof_prop["damping"][:]   = dof_prop["damping"][:]   * kd_scale
+
+            # extra damping on arms, where twitching is most visible
+            arm_names = {"L_Shoulder", "R_Shoulder", "L_Elbow", "R_Elbow"}
+            for i, name in enumerate(self._dof_names):
+                if name in arm_names:
+                    dof_prop["damping"][i] *= 1.5
+                    dof_prop["stiffness"][i] *= 0.9
+            # jiter fix 0423 =======================
+
             self.gym.set_actor_dof_properties(env_ptr, humanoid_handle, dof_prop)
 
         self.humanoid_handles.append(humanoid_handle)
@@ -538,18 +564,39 @@ class Humanoid(BaseTask):
     def _get_humanoid_collision_filter(self):
         return 0
 
+    # jiter fix 0423 =======================
     def pre_physics_step(self, actions):
-        self.actions = actions.to(self.device).clone()
+        self.actions_raw = actions.to(self.device).clone()
+
         if (self._pd_control):
+            alpha = self.action_filter_alpha
+            self._filtered_actions[:] = alpha * self._filtered_actions + (1.0 - alpha) * self.actions_raw
+            self.actions = self._filtered_actions.clone()
+
             pd_tar = self._action_to_pd_targets(self.actions)
             pd_tar_tensor = gymtorch.unwrap_tensor(pd_tar)
             self.gym.set_dof_position_target_tensor(self.sim, pd_tar_tensor)
         else:
+            self.actions = self.actions_raw
             forces = self.actions * self.motor_efforts.unsqueeze(0) * self.power_scale
             force_tensor = gymtorch.unwrap_tensor(forces)
             self.gym.set_dof_actuation_force_tensor(self.sim, force_tensor)
 
         return
+    # jiter fix 0423 =======================
+
+    # def pre_physics_step(self, actions):
+    #     self.actions = actions.to(self.device).clone()
+    #     if (self._pd_control):
+    #         pd_tar = self._action_to_pd_targets(self.actions)
+    #         pd_tar_tensor = gymtorch.unwrap_tensor(pd_tar)
+    #         self.gym.set_dof_position_target_tensor(self.sim, pd_tar_tensor)
+    #     else:
+    #         forces = self.actions * self.motor_efforts.unsqueeze(0) * self.power_scale
+    #         force_tensor = gymtorch.unwrap_tensor(forces)
+    #         self.gym.set_dof_actuation_force_tensor(self.sim, force_tensor)
+
+    #     return
 
     def post_physics_step(self):
         raise NotImplementedError(
