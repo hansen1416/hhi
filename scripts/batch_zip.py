@@ -1,8 +1,8 @@
 """
-python batch_zip.py \
-  --json /path/to/your/batches.json \
-  --batch 5 \
-  --output batch_5_motions.zip
+python scripts/batch_zip.py \
+  --json scripts/batches.json \
+  --batch 0 \
+  --output batch_0_motions.zip
 """
 
 import json
@@ -74,27 +74,23 @@ def create_batch_zip(json_path: str, batch_key: str, output_zip: str = None, mot
         copied_count = 0
         
         print(f"📋 Processing batch '{batch_key}' – expanding to all .pkl variations...")
-        for item in batch_items:
-            item_path = Path(item)
+        for motion_id in batch_items:
+
+            motion_dir = Path(os.path.join(motion_root, motion_id))
             
-            # Case 1: already a full path to a .pkl file (legacy JSON)
-            if item_path.is_file() and item_path.suffix == ".pkl":
-                files_to_copy = [item_path]
-            # Case 2: motion_id → expand to all 129 variations in sub-folder
-            else:
-                motion_id = str(item_path.name if item_path.is_dir() else item)  # support both id or Path
-                motion_dir = motion_root / motion_id
-                if not motion_dir.is_dir():
-                    print(f"⚠️  Warning: Motion directory not found → {motion_dir}")
-                    continue
-                files_to_copy = list(motion_dir.glob("*.pkl"))
+            if not motion_dir.is_dir():
+                print(f"⚠️  Warning: Motion directory not found → {motion_dir}")
+                continue
+            files_to_copy = list(motion_dir.glob("*.pkl"))
             
             for src in files_to_copy:
                 if not src.is_file() or src.suffix != ".pkl":
                     continue
-                dest = tmpdir / src.name
+                dest = os.path.join(tmpdir, src.name)
                 shutil.copy2(src, dest)
                 copied_count += 1
+
+            print(f"Copied {motion_dir} to {tmpdir}, progress {copied_count}")
         
         print(f"✅ Copied {copied_count} motion files (flat, no sub-folders)")
         

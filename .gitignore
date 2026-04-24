@@ -13,3 +13,4 @@ artifacts/
 climate
 
 phc_models/
+*.zip
