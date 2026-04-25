@@ -76,6 +76,15 @@ class HumanoidTransfer(Humanoid):
         # self._global_offset = torch.zeros(self.num_envs, 3, dtype=torch.float, device=self.device)
         # ---- target motion observation ----
 
+        # jiter fix 0423 =======================
+        if self.smoothness_reward:
+            self.smooth_action_coef = cfg["env"].get("smoothActionCoef", 0.005)
+            self._prev_actions_raw = torch.zeros(
+                (self.num_envs, self.get_action_size()),
+                device=self.device, dtype=torch.float
+            )
+        # jiter fix 0423 =======================
+
         return
 
     def post_physics_step(self):
@@ -582,6 +591,14 @@ class HumanoidTransfer(Humanoid):
             self._refresh_sim_tensors()
             self._compute_observations(env_ids=env_ids, task_obs=task_obs)
 
+            # jiter fix 0423 =======================
+            if self.action_filtering:
+                self._filtered_actions[env_ids] = 0.0
+
+            if self.smoothness_reward:
+                self._prev_actions_raw[env_ids] = 0.0
+            # jiter fix 0423 =======================
+
             # fetures plugin -------------
             for f in self._features: f.on_reset_envs(self, env_ids, target_key_pos)
             # fetures plugin -------------
@@ -870,6 +887,19 @@ class HumanoidTransfer(Humanoid):
 
             self.rew_buf[:] += power_reward
             self.reward_raw = torch.cat([self.reward_raw, power_reward[:, None]], dim=-1)
+
+        # jiter fix 0423 =======================
+        if self.smoothness_reward:
+            # smoothness penalty on raw policy action change
+            action_diff = self.actions_raw - self._prev_actions_raw
+            smooth_reward = -self.smooth_action_coef * torch.sum(action_diff * action_diff, dim=-1)
+            smooth_reward[self.progress_buf <= 1] = 0
+
+            self.rew_buf[:] += smooth_reward
+            self.reward_raw = torch.cat([self.reward_raw, smooth_reward[:, None]], dim=-1)
+
+            self._prev_actions_raw[:] = self.actions_raw
+        # jiter fix 0423 =======================
 
         return
     
