@@ -63,8 +63,12 @@ def create_batch_zip(json_path: str, batch_key: str, output_zip: str = None, mot
         print("❌ Batch is empty!")
         return None
     
+    size = 32
+    # only take 32
+    batch_items = batch_items[:size]
+    
     if output_zip is None:
-        output_zip = f"batch_{batch_key}_motions.zip"
+        output_zip = os.path.join("/home/hlz/datasets", f"batch_{batch_key}_{size}_motions.zip")
     
     output_path = Path(output_zip)
     output_path.parent.mkdir(parents=True, exist_ok=True)
