@@ -63,8 +63,8 @@ def create_batch_zip(json_path: str, batch_key: str, output_zip: str = None, mot
         print("❌ Batch is empty!")
         return None
     
-    size = 32
-    # only take 32
+    size = 128
+
     batch_items = batch_items[:size]
     
     if output_zip is None:
