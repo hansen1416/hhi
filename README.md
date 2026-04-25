@@ -16,121 +16,100 @@ Once Isaac Gym is installed, install the external dependencies for this repo:
 pip install -r requirements.txt
 ```
 
+## Train
 
-### ASE
+`
+python ase/run.py --task HumanoidPHC --cfg_env ase/data/cfg/humanoid_phc.yaml --cfg_train ase/data/cfg/train/rlg/phc_humanoid.yaml --motion_file /home/hlz/datasets/humos_results/ --headless
+`
 
-#### Pre-Training
+`
+python ase/run.py --task HumanoidPHC --cfg_env ase/data/cfg/humanoid_hhi.yaml --cfg_train ase/data/cfg/train/rlg/transfer_humanoid.yaml --motion_file /home/hlz/datasets/humos_results/000000_female_42909c1b.pkl --headless
+`
+--
 
-First, an ASE model can be trained to imitate a dataset of motions clips using the following command:
-```
-python ase/run.py --task HumanoidAMPGetup --cfg_env ase/data/cfg/humanoid_ase_sword_shield_getup.yaml --cfg_train ase/data/cfg/train/rlg/ase_humanoid.yaml --motion_file ase/data/motions/reallusion_sword_shield/dataset_reallusion_sword_shield.yaml --headless
-```
-`--motion_file` can be used to specify a dataset of motion clips that the model should imitate. 
-The task `HumanoidAMPGetup` will train a model to imitate a dataset of motion clips and get up after falling.
-Over the course of training, the latest checkpoint `Humanoid.pth` will be regularly saved to `output/`,
-along with a Tensorboard log. `--headless` is used to disable visualizations. If you want to view the
-simulation, simply remove this flag. To test a trained model, use the following command:
-```
-python ase/run.py --test --task HumanoidAMPGetup --num_envs 16 --cfg_env ase/data/cfg/humanoid_ase_sword_shield_getup.yaml --cfg_train ase/data/cfg/train/rlg/ase_humanoid.yaml --motion_file ase/data/motions/reallusion_sword_shield/dataset_reallusion_sword_shield.yaml --checkpoint [path_to_ase_checkpoint]
-```
-You can also test the robustness of the model with `--task HumanoidPerturb`, which will throw projectiles at the character.
+## Test
 
-&nbsp;
+`
+python ase/run.py --test --task HumanoidPHC --num_envs 16 --cfg_env ase/data/cfg/humanoid_phc.yaml --cfg_train ase/data/cfg/train/rlg/phc_humanoid.yaml --motion_file /home/hlz/datasets/humos_results/000003_female_1e5a1c90.pkl --checkpoint /home/hlz/Documents/humos-128shape-0226/Humanoid_26-15-39-46/nn/Humanoid_1500.pth
+`
 
-#### Task-Training
+python ase/run.py --test --task HumanoidPHC --num_envs 16 --cfg_env ase/data/cfg/humanoid_phc.yaml --cfg_train ase/data/cfg/train/rlg/phc_humanoid.yaml --motion_file /home/hlz/datasets/humos_results/000005_female_3c2cfe86.pkl --checkpoint /home/hlz/Documents/128shapes00005/hhi_film.pth
 
-After the ASE low-level controller has been trained, it can be used to train task-specific high-level controllers.
-The following command will use a pre-trained ASE model to perform a target heading task:
-```
-python ase/run.py --task HumanoidHeading --cfg_env ase/data/cfg/humanoid_sword_shield_heading.yaml --cfg_train ase/data/cfg/train/rlg/hrl_humanoid.yaml --motion_file ase/data/motions/reallusion_sword_shield/RL_Avatar_Idle_Ready_Motion.npy --llc_checkpoint [path_to_llc_checkpoint] --headless
-```
-`--llc_checkpoint` specifies the checkpoint to use for the low-level controller. A pre-trained ASE low-level
-controller is available in `ase/data/models/ase_llc_reallusion_sword_shield.pth`.
-`--task` specifies the task that the character should perform, and `--cfg_env` specifies the environment
-configurations for that task. The built-in tasks and their respective config files are:
-```
-HumanoidReach: ase/data/cfg/humanoid_sword_shield_reach.yaml
-HumanoidHeading: ase/data/cfg/humanoid_sword_shield_heading.yaml
-HumanoidLocation: ase/data/cfg/humanoid_sword_shield_location.yaml
-HumanoidStrike: ase/data/cfg/humanoid_sword_shield_strike.yaml
-```
-To test a trained model, use the following command:
-```
-python ase/run.py --test --task HumanoidHeading --num_envs 16 --cfg_env ase/data/cfg/humanoid_sword_shield_heading.yaml --cfg_train ase/data/cfg/train/rlg/hrl_humanoid.yaml --motion_file ase/data/motions/reallusion_sword_shield/RL_Avatar_Idle_Ready_Motion.npy --llc_checkpoint [path_to_llc_checkpoint] --checkpoint [path_to_hlc_checkpoint]
-```
+python ase/run.py --test --task HumanoidPHC --num_envs 16 --cfg_env ase/data/cfg/humanoid_phc.yaml --cfg_train ase/data/cfg/train/rlg/phc_humanoid.yaml --motion_file /home/hlz/datasets/humos_results_test --checkpoint /home/hlz/Documents/128shapes00005/hhi_film.pth
+
+python ase/run.py --test --task HumanoidPHC --num_envs 16 --cfg_env ase/data/cfg/humanoid_phc.yaml --cfg_train ase/data/cfg/train/rlg/phc_humanoid.yaml --motion_file /home/hlz/datasets/humos_results_test --checkpoint /home/hlz/Documents/transfer-learning-1motion-128shapes/hhi_film.pth
+
+# This is the lates, looks pretty solid, only a bit twitching
+`
+python ase/run.py --test --task HumanoidPHC --num_envs 16 --cfg_env ase/data/cfg/humanoid_phc.yaml --cfg_train ase/data/cfg/train/rlg/phc_humanoid.yaml --motion_file /home/hlz/datasets/humos_results_test --checkpoint /home/hlz/Downloads/hhi_film_0419.pth
+`
 
 
-&nbsp;
+## Visual HUMOS results in PHC format
 
-&nbsp;
+`
+python ase/run.py --task HumanoidViewMotion --num_envs 4 --cfg_env ase/data/cfg/humanoid_phc.yaml --cfg_train ase/data/cfg/train/rlg/phc_humanoid.yaml --motion_file /home/hlz/datasets/humos_results/
+`
 
-#### Pre-Trained Models
+## Tensrolog
 
-Pre-trained models are provided in `ase/data/models/`. To run a pre-trained ASE low-level controller,
-use the following command:
-```
-python ase/run.py --test --task HumanoidAMPGetup --num_envs 16 --cfg_env ase/data/cfg/humanoid_ase_sword_shield_getup.yaml --cfg_train ase/data/cfg/train/rlg/ase_humanoid.yaml --motion_file ase/data/motions/reallusion_sword_shield/dataset_reallusion_sword_shield.yaml --checkpoint ase/data/models/ase_llc_reallusion_sword_shield.pth
-```
+# 1) Create a new conda env with Python 3.8.10
+conda create -n tb_env python=3.8.10 -y
 
-Pre-trained models for the different tasks can be run using the following commands:
+# 2) Activate the environment
+conda activate tb_env
 
-Heading:
-```
-python ase/run.py --test --task HumanoidHeading --num_envs 16 --cfg_env ase/data/cfg/humanoid_sword_shield_heading.yaml --cfg_train ase/data/cfg/train/rlg/hrl_humanoid.yaml --motion_file ase/data/motions/reallusion_sword_shield/RL_Avatar_Idle_Ready_Motion.npy --llc_checkpoint ase/data/models/ase_llc_reallusion_sword_shield.pth --checkpoint ase/data/models/ase_hlc_heading_reallusion_sword_shield.pth
-```
-
-Reach:
-```
-python ase/run.py --test --task HumanoidReach --num_envs 16 --cfg_env ase/data/cfg/humanoid_sword_shield_reach.yaml --cfg_train ase/data/cfg/train/rlg/hrl_humanoid.yaml --motion_file ase/data/motions/reallusion_sword_shield/RL_Avatar_Idle_Ready_Motion.npy --llc_checkpoint ase/data/models/ase_llc_reallusion_sword_shield.pth --checkpoint ase/data/models/ase_hlc_reach_reallusion_sword_shield.pth
-```
-
-Location:
-```
-python ase/run.py --test --task HumanoidLocation --num_envs 16 --cfg_env ase/data/cfg/humanoid_sword_shield_location.yaml --cfg_train ase/data/cfg/train/rlg/hrl_humanoid.yaml --motion_file ase/data/motions/reallusion_sword_shield/RL_Avatar_Idle_Ready_Motion.npy --llc_checkpoint ase/data/models/ase_llc_reallusion_sword_shield.pth --checkpoint ase/data/models/ase_hlc_location_reallusion_sword_shield.pth
-```
-
-Strike:
-```
-python ase/run.py --test --task HumanoidStrike --num_envs 16 --cfg_env ase/data/cfg/humanoid_sword_shield_strike.yaml --cfg_train ase/data/cfg/train/rlg/hrl_humanoid.yaml --motion_file ase/data/motions/reallusion_sword_shield/RL_Avatar_Idle_Ready_Motion.npy --llc_checkpoint ase/data/models/ase_llc_reallusion_sword_shield.pth --checkpoint ase/data/models/ase_hlc_strike_reallusion_sword_shield.pth
-```
-
-&nbsp;
-
-&nbsp;
-
-### AMP
-
-We also provide an implementation of Adversarial Motion Priors (https://xbpeng.github.io/projects/AMP/index.html).
-A model can be trained to imitate a given reference motion using the following command:
-```
-python ase/run.py --task HumanoidAMP --cfg_env ase/data/cfg/humanoid_sword_shield.yaml --cfg_train ase/data/cfg/train/rlg/amp_humanoid.yaml --motion_file ase/data/motions/reallusion_sword_shield/RL_Avatar_Atk_2xCombo01_Motion.npy --headless
-```
-The trained model can then be tested with:
-```
-python ase/run.py --test --task HumanoidAMP --num_envs 16 --cfg_env ase/data/cfg/humanoid_sword_shield.yaml --cfg_train ase/data/cfg/train/rlg/amp_humanoid.yaml --motion_file ase/data/motions/reallusion_sword_shield/RL_Avatar_Atk_2xCombo01_Motion.npy --checkpoint [path_to_amp_checkpoint]
-```
-
-&nbsp;
-
-&nbsp;
-
-### Motion Data
-
-Motion clips are located in `ase/data/motions/`. Individual motion clips are stored as `.npy` files. Motion datasets are specified by `.yaml` files, which contains a list of motion clips to be included in the dataset. Motion clips can be visualized with the following command:
-```
-python ase/run.py --test --task HumanoidViewMotion --num_envs 2 --cfg_env ase/data/cfg/humanoid_sword_shield.yaml --cfg_train ase/data/cfg/train/rlg/amp_humanoid.yaml --motion_file ase/data/motions/reallusion_sword_shield/RL_Avatar_Atk_2xCombo01_Motion.npy
-```
-`--motion_file` can be used to visualize a single motion clip `.npy` or a motion dataset `.yaml`.
+# 3) Install tensorboard (and pin protobuf to avoid your previous error)
+pip install "tensorboard" "protobuf<5"
 
 
-This motion data is provided courtesy of Reallusion, strictly for noncommercial use. The original motion data is available at:
-
-https://actorcore.reallusion.com/motion/pack/studio-mocap-sword-and-shield-stunts
-
-https://actorcore.reallusion.com/motion/pack/studio-mocap-sword-and-shield-moves
+### note
 
 
-If you want to retarget new motion clips to the character, you can take a look at an example retargeting script in `ase/poselib/retarget_motion.py`.
+- load 128 of humanoid, see if their betas covers them all.
+
+
+- /humanoid_phc.py: computes *imitation reward* (compute_imitation_reward) + optional power penalty; writes rew_buf`
+
+- learning/phc_agent.py: overwrites the learning signal by mixing `task_reward_w` and `disc_reward_w` in _combine_rewards().
+
+- ase/data/cfg/train/rlg/phc_humanoid.yaml: shows `task_reward_w`: 0.0 and `disc_reward_w`: 1.0 (so PPO is not optimizing imitation reward unless you changed this).
+    - (PHC use task_reward_w: 0.5, disc_reward_w: 0.5)
+
+    - Log raw reward components (reward_raw): pos/rot/vel/ang_vel + power. Is pos/rot high (~0.8-1.0) but vel/ang_vel low? Indicates static bias.
+
+    - Experiment: Scale weights (e.g., increase w_vel to 0.2 in config). Retrain short run; if reward improves, tune.
+
+- utils/motion_lib_humos.py: dataset loading (load_data) and GPU-side motion loading (load_motions).
+
+- env/tasks/humanoid_phc.py: calls _motion_lib.sample_motions() at reset; builds reference at time `t`
+
+    Print/log at runtime (once per epoch):
+
+    _motion_lib._num_unique_motions (dataset size)
+
+    _motion_lib._num_motions (actually loaded motions available for sampling)
+
+    distribution of _sampled_motion_ids over time (should cover all 256 variants)
+
+-------
+
+## reward
+
+Adjust the scaling constants (k values) and weights (w values) in self.reward_specs to match PHC's softer penalties.
+
+self.reward_specs = cfg["env"].get("reward_specs", {
+    "k_pos": 2.0,       # Lower from 100; PHC uses ~2 for positions
+    "k_rot": 0.2,       # Lower from 10; PHC uses ~0.2 for rotations
+    "k_vel": 0.1,       # Keep or slightly adjust; PHC uses ~0.1
+    "k_ang_vel": 0.1,   # Keep or slightly adjust; PHC uses ~0.1
+    "w_pos": 0.5,       # PHC: 0.5 for positions
+    "w_rot": 0.3,       # PHC: 0.3 for rotations (or 0.2 if adding end-effector term)
+    "w_vel": 0.15,      # PHC: 0.15 for velocities
+    "w_ang_vel": 0.05   # PHC: 0.05 for angular velocities
+})
+
+-------
 
 ### Help
 

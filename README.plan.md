@@ -31,6 +31,9 @@
 
 -----------------
 
+- amass_occlusion in `scripts/data_process/convert_amass_data.py` looks good
+
+------------
 
 
 **Proposed Plan (Concise Summary)**

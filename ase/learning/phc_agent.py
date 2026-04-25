@@ -816,7 +816,7 @@ class PHCAgent(common_agent.CommonAgent):
         self._normalize_amp_input = config.get('normalize_amp_input', True)
 
         # ---- transfer learning ----
-        self._pretrained_ckpt = config.get('pretrained_ckpt', os.path.join("phc_models", "phc_3_Humanoid.pth"))
+        self._pretrained_ckpt = config.get('pretrained_ckpt')
         self._pretrained_loaded = False
         self._pretrained_raw_ckpt = None
         self._pretrained_model_state = None
@@ -1164,7 +1164,10 @@ class PHCAgent(common_agent.CommonAgent):
         We populate the demo replay buffer so discriminator immediately sees "real" samples.
         """
         super()._init_train()
-        # self._load_pretrained_checkpoint()
+
+        if self._pretrained_ckpt:
+            self._load_pretrained_checkpoint()
+
         self._init_amp_demo_buf()
         return
 

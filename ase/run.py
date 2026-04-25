@@ -34,6 +34,7 @@ from learning import phc_agent
 from learning import phc_players
 from learning import phc_models
 from learning import phc_network_builder
+from learning import transfer_network_builder
 
 from ase.learning.wandb_logger import wandb_logger
 
@@ -179,7 +180,9 @@ def build_alg_runner(algo_observer):
     runner.algo_factory.register_builder('phc', lambda **kwargs : phc_agent.PHCAgent(**kwargs))
     runner.player_factory.register_builder('phc', lambda **kwargs : phc_players.PHCPlayerContinuous(**kwargs))
     runner.model_builder.model_factory.register_builder('phc', lambda network, **kwargs : phc_models.ModelPHCContinuous(network))  
+    
     runner.model_builder.network_factory.register_builder('phc', lambda **kwargs : phc_network_builder.PHCBuilder())
+    runner.model_builder.network_factory.register_builder('transfer', lambda **kwargs : transfer_network_builder.TransferBuilder())
     
     return runner
 

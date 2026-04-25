@@ -1,9 +1,9 @@
 """
-PHC network builder with morphology-conditioned FiLM modulation.
+PHC transfer learning network builder with morphology-conditioned FiLM modulation.
 
 High-level structure
 --------------------
-This file defines the neural network used by rl_games for PHC training.
+This file defines the neural network used by rl_games for PHC transfer learning transfer learning training.
 
 The model has three logical parts:
 
@@ -58,8 +58,8 @@ import numpy as np
 DISC_LOGIT_INIT_SCALE = 1.0
 
 
-class PHCBuilder(network_builder.A2CBuilder):
-    """Wrapper for rl_games to build the PHC actor-critic + discriminator."""
+class TransferBuilder(network_builder.A2CBuilder):
+    """Wrapper for rl_games to build the PHC transfer learning actor-critic + discriminator."""
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -188,7 +188,7 @@ class PHCBuilder(network_builder.A2CBuilder):
             # Save input size so the actor forward knows where to split obs.
             self._actor_in_dim = actor_in_dim  # Store for eval_actor slicing.
 
-            # PHC typically uses vector observations, not images, so CNN is identity.
+            # PHC transfer learning typically uses vector observations, not images, so CNN is identity.
             self.actor_cnn = nn.Identity()
 
             # Build MLP with original hidden units/activation but new input size.
@@ -718,4 +718,4 @@ class PHCBuilder(network_builder.A2CBuilder):
 
         rl_games calls this builder to construct the actual neural network object.
         """
-        return PHCBuilder.Network(self.params, **kwargs)
+        return TransferBuilder.Network(self.params, **kwargs)
