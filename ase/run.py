@@ -15,21 +15,6 @@ import copy
 import torch
 import wandb
 
-from learning import amp_agent
-from learning import amp_players
-from learning import amp_models
-from learning import amp_network_builder
-
-from learning import ase_agent
-from learning import ase_players
-from learning import ase_models
-from learning import ase_network_builder
-
-from learning import hrl_agent
-from learning import hrl_players
-from learning import hrl_models
-from learning import hrl_network_builder
-
 from learning import phc_agent
 from learning import phc_players
 from learning import phc_models
@@ -162,20 +147,6 @@ env_configurations.register('rlgpu', {
 
 def build_alg_runner(algo_observer):
     runner = Runner(algo_observer)
-    runner.algo_factory.register_builder('amp', lambda **kwargs : amp_agent.AMPAgent(**kwargs))
-    runner.player_factory.register_builder('amp', lambda **kwargs : amp_players.AMPPlayerContinuous(**kwargs))
-    runner.model_builder.model_factory.register_builder('amp', lambda network, **kwargs : amp_models.ModelAMPContinuous(network))  
-    runner.model_builder.network_factory.register_builder('amp', lambda **kwargs : amp_network_builder.AMPBuilder())
-    
-    runner.algo_factory.register_builder('ase', lambda **kwargs : ase_agent.ASEAgent(**kwargs))
-    runner.player_factory.register_builder('ase', lambda **kwargs : ase_players.ASEPlayer(**kwargs))
-    runner.model_builder.model_factory.register_builder('ase', lambda network, **kwargs : ase_models.ModelASEContinuous(network))  
-    runner.model_builder.network_factory.register_builder('ase', lambda **kwargs : ase_network_builder.ASEBuilder())
-    
-    runner.algo_factory.register_builder('hrl', lambda **kwargs : hrl_agent.HRLAgent(**kwargs))
-    runner.player_factory.register_builder('hrl', lambda **kwargs : hrl_players.HRLPlayer(**kwargs))
-    runner.model_builder.model_factory.register_builder('hrl', lambda network, **kwargs : hrl_models.ModelHRLContinuous(network))  
-    runner.model_builder.network_factory.register_builder('hrl', lambda **kwargs : hrl_network_builder.HRLBuilder())
 
     runner.algo_factory.register_builder('phc', lambda **kwargs : phc_agent.PHCAgent(**kwargs))
     runner.player_factory.register_builder('phc', lambda **kwargs : phc_players.PHCPlayerContinuous(**kwargs))
