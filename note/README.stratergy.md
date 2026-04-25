@@ -1,6 +1,6 @@
 **Analysis for hansen1416/hhi single-motion collapse (PHC + HUMOS 128 variations)**
 
-Your project builds directly on **AMP** (Adversarial Motion Priors, Peng et al. SIGGRAPH 2021) and **PHC** (Perpetual Humanoid Control, Luo et al. ICCV 2023), extended with 64 body-shape variations × 2 genders from the **HUMOS** model (ECCV 2024) on AMASS. This yields 128 morphological variants per motion clip. The repo (https://github.com/hansen1416/hhi) uses a custom `PHCBuilder` (phc_network_builder.py) with FiLM conditioning on the last 11 obs dims (gender + 10 betas), so the actor trunk sees only the first 574 dims while the critic and discriminator use the full 585-D obs. The env (`HumanoidPHC` in humanoid_phc.py) runs single-motion tracking with `task_obs_v7` (9×key-bodies local Δp/Δv + root-rel pos), imitation reward (position/rot/vel/ang-vel with fixed k/w), power penalty, and AMP disc reward. `PHCAgent` (phc_agent.py) wraps rl-games PPO with eps-greedy, replay buffer, etc.
+Your project builds directly on **AMP** (Adversarial Motion Priors, Peng et al. SIGGRAPH 2021) and **PHC** (Perpetual Humanoid Control, Luo et al. ICCV 2023), extended with 64 body-shape variations × 2 genders from the **HUMOS** model (ECCV 2024) on AMASS. This yields 128 morphological variants per motion clip. The repo (https://github.com/hansen1416/hhi) uses a custom `HHIBuilder` (hhi_network_builder.py) with FiLM conditioning on the last 11 obs dims (gender + 10 betas), so the actor trunk sees only the first 574 dims while the critic and discriminator use the full 585-D obs. The env (`HumanoidHHI` in humanoid_hhi.py) runs single-motion tracking with `task_obs_v7` (9×key-bodies local Δp/Δv + root-rel pos), imitation reward (position/rot/vel/ang-vel with fixed k/w), power penalty, and AMP disc reward. `HHIAgent` (hhi_agent.py) wraps rl-games PPO with eps-greedy, replay buffer, etc.
 
 **Diagnosis (why static pose on single motion)**  
 In single-motion mode the imitation reward is too weak relative to the power term (`-power_coefficient * |torque·vel|` in `_compute_reward`). Early in training the policy discovers a low-energy static/default pose that (a) satisfies early-termination avoidance, (b) keeps power near zero, and (c) is “real enough” for the AMP discriminator (which was trained on varied motions but sees mostly static fakes). The discriminator cannot strongly penalize it because the static pose is a valid (if trivial) mode in the motion manifold. FiLM conditioning on betas helps morphology generalization but does not force tracking when the base imitation signal is insufficient. Eps-greedy + PPO’s value estimation further encourages exploitation of the safe static attractor. This is classic reward hacking / mode collapse in single-task AMP setups — well-documented in recent literature when the task reward is sparse or the style reward is distribution-level rather than frame-level.
@@ -19,7 +19,7 @@ Recent papers emphasize automatic or adaptive rewards to prevent exactly this st
    Replace your hand-tuned imitation_reward with a differential discriminator on error vector Δ = ref_features – agent_features (root pos/rot, joint pos/rot/vel, key-body pos — exactly what you already compute in `build_amp_observations` and `compute_task_obs_v7`).  
    Discriminator D(Δ) trained with single positive sample (Δ=0) + gradient penalty on negatives. Policy reward = –log(1 – D(Δ_t)).  
    This auto-balances multi-objective tracking without manual k/w and forces frame-level fidelity (your current AMP is distribution-level, allowing static modes).  
-   Borrowable code patch in `humanoid_phc.py` `_compute_reward`:
+   Borrowable code patch in `humanoid_hhi.py` `_compute_reward`:
    ```python
    # instead of fixed weighted exp
    delta = torch.cat([ref_body_pos - body_pos, ...])  # build your Δ
@@ -60,7 +60,7 @@ Recent papers emphasize automatic or adaptive rewards to prevent exactly this st
 - Episode length: longer for single motion (your max_episode_length).
 
 **Code-level patches (ready to apply)**
-In `humanoid_phc.py` (reward):
+In `humanoid_hhi.py` (reward):
 ```python
 # ADD-style or adaptive
 error = torch.norm(ref_body_pos - body_pos, dim=-1).mean(dim=-1)
@@ -68,9 +68,9 @@ sigma = self._adaptive_sigma  # EMA update
 r_pos = torch.exp(-error / sigma)
 # ... same for others, then combine with power
 ```
-In `phc_network_builder.py` (eval_actor): add phase to cond_mlp input if you want phase-conditioned FiLM.
+In `hhi_network_builder.py` (eval_actor): add phase to cond_mlp input if you want phase-conditioned FiLM.
 
-In `phc_agent.py`: add privileged critic head for ref features.
+In `hhi_agent.py`: add privileged critic head for ref features.
 
 **Evaluation plan**
 - Per-key-body position/velocity error vs reference over full clip (not just reward).

@@ -9,7 +9,7 @@ Expanded the policy/value observation from `585` to `945` by replacing the small
 
 **2. Code changes**
 
-* `ase/env/tasks/humanoid_phc.py`
+* `ase/env/tasks/humanoid_hhi.py`
 
   * Changed `self._num_task_obs` from `9 * len(key_bodies)` to `24 * num_key_bodies * self._num_traj_samples`.
   * Updated concatenated observation comments and actual observation size from `574/585` to `934/945`.
@@ -22,7 +22,7 @@ Expanded the policy/value observation from `585` to `945` by replacing the small
     * local reference body position,
     * local reference body rotation.
   * Added new `compute_task_obs_v6_1step(...)`.
-* `ase/learning/phc_network_builder.py`
+* `ase/learning/hhi_network_builder.py`
 
   * Updated actor and critic input slicing from `574` to `934`.
   * Updated documentation/comments to reflect `obs[:, :934]` for state/task input and `obs[:, 934:]` for the 11-D shape code. 
@@ -64,7 +64,7 @@ Reduced the discriminator input from `2920` to `1960` by restoring PHC-style AMP
 
 **2. Code changes**
 
-* `ase/env/tasks/humanoid_phc.py`
+* `ase/env/tasks/humanoid_hhi.py`
 
   * Introduced `ampKeyBodies`, defaulting to a PHC-style 4-body set: wrists and ankles.
   * Added:
@@ -127,7 +127,7 @@ Removed a redundant AMP key-body initialization block from `__init__`.
 
 **2. Code changes**
 
-* `ase/env/tasks/humanoid_phc.py`
+* `ase/env/tasks/humanoid_hhi.py`
 
   * Deleted early initialization of:
 
@@ -153,11 +153,11 @@ Cleaner implementation and lower risk of accidental mismatch in AMP body selecti
 **Title:** disc obs cosmatic changes
 
 **1. Change summary**
-Updated comments in `humanoid_phc.py` so recorded tensor shapes reflect the new discriminator size `196/1960` instead of the old `292/2920`. 
+Updated comments in `humanoid_hhi.py` so recorded tensor shapes reflect the new discriminator size `196/1960` instead of the old `292/2920`. 
 
 **2. Code changes**
 
-* `ase/env/tasks/humanoid_phc.py`
+* `ase/env/tasks/humanoid_hhi.py`
 
   * Revised comments around `fetch_amp_obs_demo()`:
 
@@ -187,7 +187,7 @@ Updated comments in the learning stack so all discriminator-related tensors are 
 
 **2. Code changes**
 
-* `ase/learning/phc_agent.py`
+* `ase/learning/hhi_agent.py`
 
   * Updated comment annotations for:
 
@@ -195,10 +195,10 @@ Updated comments in the learning stack so all discriminator-related tensors are 
     * demo sampling,
     * replay sampling,
     * demo buffer initialization/update.
-* `ase/learning/phc_models.py`
+* `ase/learning/hhi_models.py`
 
   * Updated shape comments around discriminator forward branches.
-* `ase/learning/phc_network_builder.py`
+* `ase/learning/hhi_network_builder.py`
 
   * Updated comments describing discriminator input dimension. 
 
@@ -220,11 +220,11 @@ Improves readability and keeps engineering notes consistent with the actual tran
 **Title:** load existing weights!
 
 **1. Change summary**
-Added explicit transfer-learning support in `PHCAgent`: load a pretrained PHC checkpoint, remap old actor weights into the new actor trunk, directly load compatible critic/discriminator/sigma weights, and selectively load normalization statistics, including prefix-expansion for the observation running mean/std. The checkpoint loader is called automatically at training initialization. 
+Added explicit transfer-learning support in `HHIAgent`: load a pretrained PHC checkpoint, remap old actor weights into the new actor trunk, directly load compatible critic/discriminator/sigma weights, and selectively load normalization statistics, including prefix-expansion for the observation running mean/std. The checkpoint loader is called automatically at training initialization. 
 
 **2. Code changes**
 
-* `ase/learning/phc_agent.py`
+* `ase/learning/hhi_agent.py`
 
   * Added config fields:
 

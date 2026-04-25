@@ -20,7 +20,7 @@ import learning.common_agent as common_agent
 
 from ase.learning.wandb_logger import wandb_logger
 
-class PHCAgent(common_agent.CommonAgent):
+class HHIAgent(common_agent.CommonAgent):
     """
     AMP (Adversarial Motion Priors) agent built on top of an RL-Games PPO-style agent.
 
@@ -327,7 +327,7 @@ class PHCAgent(common_agent.CommonAgent):
             terminated = infos['terminate'].float()
             terminated = terminated.unsqueeze(-1)
             # critic learns a value function for PPO
-            # # Source: learning/phc_network_builder.py -> PHCBuilder.Network.eval_critic
+            # # Source: learning/hhi_network_builder.py -> HHIBuilder.Network.eval_critic
             next_vals = self._eval_critic(self.obs)
             next_vals *= (1.0 - terminated)
             self.experience_buffer.update_data('next_values', n, next_vals)

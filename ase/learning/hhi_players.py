@@ -5,7 +5,7 @@ from rl_games.algos_torch.running_mean_std import RunningMeanStd
 
 import learning.common_player as common_player
 
-class PHCPlayerContinuous(common_player.CommonPlayer):
+class HHIPlayerContinuous(common_player.CommonPlayer):
     def __init__(self, config):
         self._normalize_amp_input = config.get('normalize_amp_input', True)
         self._disc_reward_scale = config['disc_reward_scale']

@@ -1,6 +1,6 @@
 from env.tasks.humanoid import Humanoid
 from env.tasks.humanoid_view_motion import HumanoidViewMotion
-from env.tasks.humanoid_phc import HumanoidPHC
+from env.tasks.humanoid_hhi import HumanoidHHI
 from env.tasks.humanoid_transfer import HumanoidTransfer
 from env.tasks.vec_task_wrappers import VecTaskPythonWrapper
 

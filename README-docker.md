@@ -7,7 +7,7 @@ docker pull hansen1416/phc:latest
 cd /home && \
 git clone https://github.com/hansen1416/hhi.git && \
 cd /home/hhi && \
-mkdir -p output artifacts phc_models && \
+mkdir -p output artifacts hhi_models && \
 chmod -R 777 output artifacts && \
 apt update && apt install -y zip unzip
 
@@ -15,7 +15,7 @@ scp -i ~/.ssh/id_ed25519 /home/hlz/datasets/humos_results.zip root@95.133.252.14
 
 scp -i ~/.ssh/id_ed25519 /home/hlz/datasets/smpl_model.zip  root@95.133.252.146:/home/hhi
 
-scp -i ~/.ssh/id_ed25519 /home/hlz/repos/hhi/phc_models/phc_3_Humanoid.pth  root@95.133.252.146:/home/hhi/phc_models/phc_3_Humanoid.pth
+scp -i ~/.ssh/id_ed25519 /home/hlz/repos/hhi/hhi_models/phc_3_Humanoid.pth  root@95.133.252.146:/home/hhi/hhi_models/phc_3_Humanoid.pth
 
 unzip humos_results.zip
 unzip smpl_model.zip
@@ -66,5 +66,5 @@ cd /home/gymuser/hhi/
 
 wandb login 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
 
-python ase/run.py --task HumanoidPHC --cfg_env ase/data/cfg/humanoid_phc.yaml --cfg_train ase/data/cfg/train/rlg/phc_humanoid.yaml --motion_file /home/gymuser/hhi/humos_results/ --headless
+python ase/run.py --task HumanoidHHI --cfg_env ase/data/cfg/humanoid_hhi.yaml --cfg_train ase/data/cfg/train/rlg/hhi_humanoid.yaml --motion_file /home/gymuser/hhi/humos_results/ --headless
 

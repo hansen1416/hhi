@@ -19,40 +19,40 @@ pip install -r requirements.txt
 ## Train
 
 `
-python ase/run.py --task HumanoidPHC --cfg_env ase/data/cfg/humanoid_phc.yaml --cfg_train ase/data/cfg/train/rlg/phc_humanoid.yaml --motion_file /home/hlz/datasets/humos_results/ --headless
+python ase/run.py --task HumanoidHHI --cfg_env ase/data/cfg/humanoid_hhi.yaml --cfg_train ase/data/cfg/train/rlg/hhi_humanoid.yaml --motion_file /home/hlz/datasets/humos_results/ --headless
 `
 
 `
-python ase/run.py --task HumanoidPHC --cfg_env ase/data/cfg/humanoid_hhi.yaml --cfg_train ase/data/cfg/train/rlg/transfer_humanoid.yaml --motion_file /home/hlz/datasets/humos_results/000000_female_42909c1b.pkl --headless
+python ase/run.py --task HumanoidTransfer --cfg_env ase/data/cfg/humanoid_hhi.yaml --cfg_train ase/data/cfg/train/rlg/transfer_humanoid.yaml --motion_file /home/hlz/datasets/humos_results/000000_female_42909c1b.pkl --headless
 `
 
 `
-python ase/run.py --task HumanoidPHC --cfg_env ase/data/cfg/humanoid_phc.yaml --cfg_train ase/data/cfg/train/rlg/phc_humanoid.yaml --motion_file /home/hlz/datasets/humos_results/000000_female_42909c1b.pkl --headless
+python ase/run.py --task HumanoidHHI --cfg_env ase/data/cfg/humanoid_hhi.yaml --cfg_train ase/data/cfg/train/rlg/hhi_humanoid.yaml --motion_file /home/hlz/datasets/humos_results/000000_female_42909c1b.pkl --headless
 `
 --
 
 ## Test
 
 `
-python ase/run.py --test --task HumanoidPHC --num_envs 16 --cfg_env ase/data/cfg/humanoid_phc.yaml --cfg_train ase/data/cfg/train/rlg/phc_humanoid.yaml --motion_file /home/hlz/datasets/humos_results/000003_female_1e5a1c90.pkl --checkpoint /home/hlz/Documents/humos-128shape-0226/Humanoid_26-15-39-46/nn/Humanoid_1500.pth
+python ase/run.py --test --task HumanoidHHI --num_envs 16 --cfg_env ase/data/cfg/humanoid_hhi.yaml --cfg_train ase/data/cfg/train/rlg/hhi_humanoid.yaml --motion_file /home/hlz/datasets/humos_results/000003_female_1e5a1c90.pkl --checkpoint /home/hlz/Documents/humos-128shape-0226/Humanoid_26-15-39-46/nn/Humanoid_1500.pth
 `
 
-python ase/run.py --test --task HumanoidPHC --num_envs 16 --cfg_env ase/data/cfg/humanoid_phc.yaml --cfg_train ase/data/cfg/train/rlg/phc_humanoid.yaml --motion_file /home/hlz/datasets/humos_results/000005_female_3c2cfe86.pkl --checkpoint /home/hlz/Documents/128shapes00005/hhi_film.pth
+python ase/run.py --test --task HumanoidHHI --num_envs 16 --cfg_env ase/data/cfg/humanoid_hhi.yaml --cfg_train ase/data/cfg/train/rlg/hhi_humanoid.yaml --motion_file /home/hlz/datasets/humos_results/000005_female_3c2cfe86.pkl --checkpoint /home/hlz/Documents/128shapes00005/hhi_film.pth
 
-python ase/run.py --test --task HumanoidPHC --num_envs 16 --cfg_env ase/data/cfg/humanoid_phc.yaml --cfg_train ase/data/cfg/train/rlg/phc_humanoid.yaml --motion_file /home/hlz/datasets/humos_results_test --checkpoint /home/hlz/Documents/128shapes00005/hhi_film.pth
+python ase/run.py --test --task HumanoidHHI --num_envs 16 --cfg_env ase/data/cfg/humanoid_hhi.yaml --cfg_train ase/data/cfg/train/rlg/hhi_humanoid.yaml --motion_file /home/hlz/datasets/humos_results_test --checkpoint /home/hlz/Documents/128shapes00005/hhi_film.pth
 
-python ase/run.py --test --task HumanoidPHC --num_envs 16 --cfg_env ase/data/cfg/humanoid_phc.yaml --cfg_train ase/data/cfg/train/rlg/phc_humanoid.yaml --motion_file /home/hlz/datasets/humos_results_test --checkpoint /home/hlz/Documents/transfer-learning-1motion-128shapes/hhi_film.pth
+python ase/run.py --test --task HumanoidHHI --num_envs 16 --cfg_env ase/data/cfg/humanoid_hhi.yaml --cfg_train ase/data/cfg/train/rlg/hhi_humanoid.yaml --motion_file /home/hlz/datasets/humos_results_test --checkpoint /home/hlz/Documents/transfer-learning-1motion-128shapes/hhi_film.pth
 
 # This is the lates, looks pretty solid, only a bit twitching
 `
-python ase/run.py --test --task HumanoidPHC --num_envs 16 --cfg_env ase/data/cfg/humanoid_phc.yaml --cfg_train ase/data/cfg/train/rlg/phc_humanoid.yaml --motion_file /home/hlz/datasets/humos_results_test --checkpoint /home/hlz/Downloads/hhi_film_0419.pth
+python ase/run.py --test --task HumanoidHHI --num_envs 16 --cfg_env ase/data/cfg/humanoid_hhi.yaml --cfg_train ase/data/cfg/train/rlg/hhi_humanoid.yaml --motion_file /home/hlz/datasets/humos_results_test --checkpoint /home/hlz/Downloads/hhi_film_0419.pth
 `
 
 
 ## Visual HUMOS results in PHC format
 
 `
-python ase/run.py --task HumanoidViewMotion --num_envs 4 --cfg_env ase/data/cfg/humanoid_phc.yaml --cfg_train ase/data/cfg/train/rlg/phc_humanoid.yaml --motion_file /home/hlz/datasets/humos_results/
+python ase/run.py --task HumanoidViewMotion --num_envs 4 --cfg_env ase/data/cfg/humanoid_hhi.yaml --cfg_train ase/data/cfg/train/rlg/hhi_humanoid.yaml --motion_file /home/hlz/datasets/humos_results/
 `
 
 ## Tensrolog
@@ -73,11 +73,11 @@ pip install "tensorboard" "protobuf<5"
 - load 128 of humanoid, see if their betas covers them all.
 
 
-- /humanoid_phc.py: computes *imitation reward* (compute_imitation_reward) + optional power penalty; writes rew_buf`
+- /humanoid_hhi.py: computes *imitation reward* (compute_imitation_reward) + optional power penalty; writes rew_buf`
 
-- learning/phc_agent.py: overwrites the learning signal by mixing `task_reward_w` and `disc_reward_w` in _combine_rewards().
+- learning/hhi_agent.py: overwrites the learning signal by mixing `task_reward_w` and `disc_reward_w` in _combine_rewards().
 
-- ase/data/cfg/train/rlg/phc_humanoid.yaml: shows `task_reward_w`: 0.0 and `disc_reward_w`: 1.0 (so PPO is not optimizing imitation reward unless you changed this).
+- ase/data/cfg/train/rlg/hhi_humanoid.yaml: shows `task_reward_w`: 0.0 and `disc_reward_w`: 1.0 (so PPO is not optimizing imitation reward unless you changed this).
     - (PHC use task_reward_w: 0.5, disc_reward_w: 0.5)
 
     - Log raw reward components (reward_raw): pos/rot/vel/ang_vel + power. Is pos/rot high (~0.8-1.0) but vel/ang_vel low? Indicates static bias.
@@ -86,7 +86,7 @@ pip install "tensorboard" "protobuf<5"
 
 - utils/motion_lib_humos.py: dataset loading (load_data) and GPU-side motion loading (load_motions).
 
-- env/tasks/humanoid_phc.py: calls _motion_lib.sample_motions() at reset; builds reference at time `t`
+- env/tasks/humanoid_hhi.py: calls _motion_lib.sample_motions() at reset; builds reference at time `t`
 
     Print/log at runtime (once per epoch):
 

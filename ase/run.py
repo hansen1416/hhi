@@ -15,10 +15,10 @@ import copy
 import torch
 import wandb
 
-from learning import phc_agent
-from learning import phc_players
-from learning import phc_models
-from learning import phc_network_builder
+from learning import hhi_agent
+from learning import hhi_players
+from learning import hhi_models
+from learning import hhi_network_builder
 from learning import transfer_network_builder
 
 from ase.learning.wandb_logger import wandb_logger
@@ -148,11 +148,11 @@ env_configurations.register('rlgpu', {
 def build_alg_runner(algo_observer):
     runner = Runner(algo_observer)
 
-    runner.algo_factory.register_builder('phc', lambda **kwargs : phc_agent.PHCAgent(**kwargs))
-    runner.player_factory.register_builder('phc', lambda **kwargs : phc_players.PHCPlayerContinuous(**kwargs))
-    runner.model_builder.model_factory.register_builder('phc', lambda network, **kwargs : phc_models.ModelPHCContinuous(network))  
+    runner.algo_factory.register_builder('hhi', lambda **kwargs : hhi_agent.HHIAgent(**kwargs))
+    runner.player_factory.register_builder('hhi', lambda **kwargs : hhi_players.HHIPlayerContinuous(**kwargs))
+    runner.model_builder.model_factory.register_builder('hhi', lambda network, **kwargs : hhi_models.ModelPHCContinuous(network))  
     
-    runner.model_builder.network_factory.register_builder('phc', lambda **kwargs : phc_network_builder.PHCBuilder())
+    runner.model_builder.network_factory.register_builder('hhi', lambda **kwargs : hhi_network_builder.HHIBuilder())
     runner.model_builder.network_factory.register_builder('transfer', lambda **kwargs : transfer_network_builder.TransferBuilder())
     
     return runner

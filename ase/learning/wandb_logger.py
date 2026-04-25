@@ -73,7 +73,7 @@ class WandbLogger:
             description="PHC + FiLM (morphology-conditioned) actor-critic for 128 HUMOS body shapes (64 betas × 2 genders)",
             metadata={
                 "epoch": epoch,
-                "framework": "rl-games + PHCBuilder (FiLM)",
+                "framework": "rl-games + HHIBuilder (FiLM)",
                 "obs_dim": 585,
                 "actor_in_dim": 574,
                 "cond_dim": 11,          # gender + 10 betas

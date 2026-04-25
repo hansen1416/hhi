@@ -141,7 +141,7 @@ class HumanoidTransfer(Humanoid):
     # def fetch_amp_obs_demo(self, num_samples):
     def fetch_amp_obs_demo(self):
         """
-        num_sample is the same as PHCAgent._amp_batch_size, 
+        num_sample is the same as HHIAgent._amp_batch_size, 
         controled by cfg_train['params']['config']['amp_batch_size']
 
         disc-shape-condition

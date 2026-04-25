@@ -1,15 +1,15 @@
 """
-PHC transfer learning network builder with morphology-conditioned FiLM modulation.
+HHI network builder with morphology-conditioned FiLM modulation.
 
 High-level structure
 --------------------
-This file defines the neural network used by rl_games for PHC transfer learning transfer learning training.
+This file defines the neural network used by rl_games for HHI training.
 
 The model has three logical parts:
 
 1. Actor (policy)
    - Takes the environment observation.
-   - Uses only the first 574 dims as the main motion/task/state input.
+   - Uses only the first 934 dims as the main motion/task/state input.
    - Uses the last 11 dims (gender + 10 betas) as a morphology condition.
    - Applies FiLM modulation to the actor hidden features:
          h <- h * gamma(cond) + beta(cond)
@@ -28,11 +28,11 @@ The model has three logical parts:
 Important observation layout
 ----------------------------
 Environment observation shape:
-    obs: [B, 585]
+    obs: [B, 945]
 
 Split:
-    obs[:, :574]   -> state/task features for actor trunk
-    obs[:, 574:]   -> morphology condition = [gender, beta_1, ..., beta_10]
+    obs[:, :934]   -> state/task features for actor trunk
+    obs[:, 934:]   -> morphology condition = [gender, beta_1, ..., beta_10]
 
 Important AMP layout
 --------------------
@@ -59,7 +59,7 @@ DISC_LOGIT_INIT_SCALE = 1.0
 
 
 class TransferBuilder(network_builder.A2CBuilder):
-    """Wrapper for rl_games to build the PHC transfer learning actor-critic + discriminator."""
+    """Wrapper for rl_games to build the HHI actor-critic + discriminator."""
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -70,8 +70,8 @@ class TransferBuilder(network_builder.A2CBuilder):
         Summary of components
         ---------------------
         Actor:
-            - input: obs[:, :574] (obs: [B, 585])
-            - condition: obs[:, 574:] (11 dims)
+            - input: obs[:, :934] (obs: [B, 945])
+            - condition: obs[:, 934:] (11 dims)
             - structure: actor MLP + FiLM modulation from morphology
 
         Critic:
@@ -99,7 +99,7 @@ class TransferBuilder(network_builder.A2CBuilder):
             1. Let the base rl_games class build the default actor/critic parts.
             2. Optionally create fixed sigma for continuous policies.
             3. Build the discriminator for AMP.
-            4. Rebuild the actor trunk so it consumes only 574 dims, not full obs.
+            4. Rebuild the actor trunk so it consumes only 934 dims, not full obs.
             5. Build the actor FiLM conditioner.
             """
             # Calls self.load(params) internally, making actor/critic configs available.
@@ -121,7 +121,7 @@ class TransferBuilder(network_builder.A2CBuilder):
 
             self._shape_dim = 11
 
-            # (2920,) This is the motion feature dimension seen by the discriminator.
+            # (1960,) This is the motion feature dimension seen by the discriminator.
             amp_input_shape = kwargs.get("amp_input_shape")
             # Build discriminator:
             #   amp_obs -> disc_mlp -> disc_logits
@@ -130,15 +130,15 @@ class TransferBuilder(network_builder.A2CBuilder):
             self._build_disc(amp_input_shape)
 
             # Replace the default actor MLP with a new actor MLP that takes only
-            # the first 574 dims of the observation. The last 11 dims are handled
+            # the first 934 dims of the observation. The last 11 dims are handled
             # separately by the FiLM conditioner.
-            self._rebuild_actor_trunk(actor_in_dim=574)
+            self._rebuild_actor_trunk(actor_in_dim=934)
 
             # Build actor-side morphology conditioner:
             #   shape(11) -> cond_mlp -> cond_linear -> gamma/beta for actor layers
             self._build_film_cond()
 
-            self._rebuild_critic_trunk(critic_in_dim=574)
+            self._rebuild_critic_trunk(critic_in_dim=934)
             self._build_critic_film_cond()
 
         def load(self, params):
@@ -174,7 +174,7 @@ class TransferBuilder(network_builder.A2CBuilder):
             of the observation, not the shape condition.
 
             Input:
-                actor_in_dim = 574
+                actor_in_dim = 934
 
             Output:
                 actor_mlp: standard MLP with hidden sizes from config
@@ -188,7 +188,7 @@ class TransferBuilder(network_builder.A2CBuilder):
             # Save input size so the actor forward knows where to split obs.
             self._actor_in_dim = actor_in_dim  # Store for eval_actor slicing.
 
-            # PHC transfer learning typically uses vector observations, not images, so CNN is identity.
+            # HHI typically uses vector observations, not images, so CNN is identity.
             self.actor_cnn = nn.Identity()
 
             # Build MLP with original hidden units/activation but new input size.
@@ -417,7 +417,7 @@ class TransferBuilder(network_builder.A2CBuilder):
             Steps
             -----
             1. Split observation into:
-                - state/task input      [B, 574]
+                - state/task input      [B, 934]
                 - morphology condition  [B, 11]
 
             2. Run state/task input through actor trunk.
@@ -436,8 +436,8 @@ class TransferBuilder(network_builder.A2CBuilder):
             For continuous control:
                 mu, sigma
             """
-            state_obs = obs[:, :574]  # State/task features.
-            gender_betas = obs[:, 574:]  # Condition (11 dims).
+            state_obs = obs[:, :934]  # State/task features.
+            gender_betas = obs[:, 934:]  # Condition (11 dims).
 
             a_out = self.actor_cnn(state_obs)
             a_out = a_out.contiguous().view(a_out.size(0), -1)
@@ -476,7 +476,7 @@ class TransferBuilder(network_builder.A2CBuilder):
                 full obs -> critic_cnn -> critic_mlp -> value head
 
             So unlike the actor, the critic currently:
-            - consumes all 585 dims directly
+            - consumes all 945 dims directly
             - does not explicitly separate morphology
             - does not use FiLM conditioning
 
@@ -492,8 +492,8 @@ class TransferBuilder(network_builder.A2CBuilder):
             You could later make the critic morphology-aware too, by applying
             the same split-and-FiLM pattern as the actor.
             """
-            state_obs = obs[:, :574]
-            gender_betas = obs[:, 574:]
+            state_obs = obs[:, :934]
+            gender_betas = obs[:, 934:]
 
             c_out = self.critic_cnn(state_obs)
             c_out = c_out.contiguous().view(c_out.size(0), -1)
@@ -623,7 +623,7 @@ class TransferBuilder(network_builder.A2CBuilder):
 
             Input
             -----
-            input_shape[0] = AMP feature dimension, e.g. 2920
+            input_shape[0] = AMP feature dimension, e.g. 1960
 
             Structure
             ---------

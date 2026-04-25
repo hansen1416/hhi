@@ -2,10 +2,10 @@ import torch
 
 from isaacgym import gymtorch
 
-from env.tasks.humanoid_phc import HumanoidPHC
+from env.tasks.humanoid_hhi import HumanoidHHI
 
 
-class HumanoidViewMotion(HumanoidPHC):
+class HumanoidViewMotion(HumanoidHHI):
     def __init__(self, cfg, sim_params, physics_engine, device_type, device_id, headless):
         """
         HumanoidViewMotion does not use physics-based joint torques. `cfg["env"]["pdControl"] = False`,

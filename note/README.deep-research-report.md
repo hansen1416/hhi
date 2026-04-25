@@ -2,16 +2,16 @@
 
 ## Problem setting and code-grounded diagnosis
 
-Your current stack (as implemented in the repo) is a hybrid of PHC-style per-frame reference tracking plus AMP-style adversarial priors, with explicit morphology conditioning in the policy. Concretely, the actor-critic is built via a custom PHCBuilder that **FiLM-conditions the actor** on the last 11 observation dimensions (“gender + 10 betas”), while feeding only the first 574 dimensions (state + task features) into the actor trunk. The critic still consumes the full observation. citeturn10view0
+Your current stack (as implemented in the repo) is a hybrid of PHC-style per-frame reference tracking plus AMP-style adversarial priors, with explicit morphology conditioning in the policy. Concretely, the actor-critic is built via a custom HHIBuilder that **FiLM-conditions the actor** on the last 11 observation dimensions (“gender + 10 betas”), while feeding only the first 574 dimensions (state + task features) into the actor trunk. The critic still consumes the full observation. citeturn10view0
 
-The environment `HumanoidPHC` constructs a **585-D observation** by concatenating a self-state block (computed from rigid-body positions/orientations/velocities and root height), a task block (`task_obs_v7`) built from **local root-frame ∆position/∆velocity and root-relative target position** over key bodies, and finally the 11-D shape condition appended at the end. citeturn9view0turn23view0turn19view0turn10view0
+The environment `HumanoidHHI` constructs a **585-D observation** by concatenating a self-state block (computed from rigid-body positions/orientations/velocities and root height), a task block (`task_obs_v7`) built from **local root-frame ∆position/∆velocity and root-relative target position** over key bodies, and finally the 11-D shape condition appended at the end. citeturn9view0turn23view0turn19view0turn10view0
 
-The reward in `HumanoidPHC` is computed as:
+The reward in `HumanoidHHI` is computed as:
 
 - an **imitation reward** that is a *weighted sum of exponentials* over global body position error, body rotation error, linear velocity error, and angular velocity error, using the tunables `k_pos=50, k_rot=30, k_vel=0.1, k_ang_vel=0.1` and weights `(0.5, 0.3, 0.1, 0.1)`; and  
 - a **power penalty** of the form `-power_coefficient * sum(|torque * joint_vel|)` (skipping the first few frames), with `power_coefficient` coming from the env config. citeturn23view0turn9view0turn8view1
 
-Separately, the PPO+AMP training loop in `PHCAgent` shapes a **discriminator reward** as  
+Separately, the PPO+AMP training loop in `HHIAgent` shapes a **discriminator reward** as  
 \[
 r_{\text{disc}} = -\log(\max(1-\sigma(\text{logit}), \varepsilon)) \cdot \text{disc\_reward\_scale},
 \]
@@ -35,7 +35,7 @@ This establishes a simple **scale mismatch**: unless tracking reward is strong e
 ### Early termination plus value bootstrapping makes “quit early” attractive
 
 Your termination logic flags failure when (i) non-foot contacts exceed a threshold and (ii) some body heights drop below a per-body termination height; this is then used as a “terminate” flag passed to the agent. citeturn23view0turn8view1  
-In `PHCAgent`, the critic bootstrap is explicitly masked by `next_vals *= (1 - terminated)` to avoid bootstrapping through failure transitions. citeturn8view2
+In `HHIAgent`, the critic bootstrap is explicitly masked by `next_vals *= (1 - terminated)` to avoid bootstrapping through failure transitions. citeturn8view2
 
 This masking is reasonable for stability, but it also means that if the agent can **trigger termination at will** after accruing only small penalties (or avoiding future penalties), the RL objective can prefer this behavior—especially when per-step rewards are small and dominated by a negative component.
 
@@ -43,7 +43,7 @@ More broadly, PPO optimizes expected discounted return with GAE-style advantage 
 
 ### The AMP reward is positive-only and does not penalize stasis
 
-The discriminator shaping in `PHCAgent` is monotone nonnegative: if `prob` is small (fake), \(r_{\text{disc}}\approx 0\). It does not produce negative reward for “very fake” behaviors; it only withholds a bonus. citeturn24view0  
+The discriminator shaping in `HHIAgent` is monotone nonnegative: if `prob` is small (fake), \(r_{\text{disc}}\approx 0\). It does not produce negative reward for “very fake” behaviors; it only withholds a bonus. citeturn24view0  
 So a static policy can sit at a regime where:
 - imitation reward is low-to-moderate (depending on how far reference motion is),  
 - power penalty is near 0, and  
@@ -60,7 +60,7 @@ The highest-leverage fix is to change the **relative incentives** so that (a) st
 
 **Recommended change:** start training with **no (or tiny) power regularization**, then ramp it up only after tracking is already stable. This mirrors a common recipe in high-dynamic tracking pipelines: first solve feasibility and tracking, then optimize efficiency. It is conceptually aligned with the “perfect first, then scale up” curriculum philosophy used in more recent imitation/control works. citeturn15search3turn15search2
 
-Concretely in your code, this is easiest as a curriculum on `power_coefficient` (or on a separate coefficient applied after combining rewards). Right now, power enters directly in `HumanoidPHC._compute_reward` and is therefore inseparable from “task reward” at combination time. citeturn9view0turn23view0turn24view0  
+Concretely in your code, this is easiest as a curriculum on `power_coefficient` (or on a separate coefficient applied after combining rewards). Right now, power enters directly in `HumanoidHHI._compute_reward` and is therefore inseparable from “task reward” at combination time. citeturn9view0turn23view0turn24view0  
 If you keep it in-env, implement:
 
 - **Warm-start:** `power_coefficient = 0` for the first N epochs.

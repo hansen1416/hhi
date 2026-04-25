@@ -10,7 +10,7 @@ in `env/tasks/humanoid.py`, in `_create_envs` (right before calling `gym.load_as
 
 ## Morphology-aware spawn height and safe resets
 
-in `env/tasks/humanoid.py` and `ase/env/tasks/humanoid_phc.py`:
+in `env/tasks/humanoid.py` and `ase/env/tasks/humanoid_hhi.py`:
 
   - `_build_env` (initial root pose; currently uses a single `char_h` for all envs).
   - `_reset_envs` / `_reset_actors`.

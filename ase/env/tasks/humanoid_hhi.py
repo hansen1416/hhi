@@ -13,7 +13,7 @@ from isaacgym.torch_utils import *
 from poselib.poselib.skeleton.skeleton3d import SkeletonTree
 from utils import torch_utils
 
-class HumanoidPHC(Humanoid):
+class HumanoidHHI(Humanoid):
 
     def __init__(self, cfg, sim_params, physics_engine, device_type, device_id, headless):
 
@@ -149,7 +149,7 @@ class HumanoidPHC(Humanoid):
     # def fetch_amp_obs_demo(self, num_samples):
     def fetch_amp_obs_demo(self):
         """
-        num_sample is the same as PHCAgent._amp_batch_size, 
+        num_sample is the same as HHIAgent._amp_batch_size, 
         controled by cfg_train['params']['config']['amp_batch_size']
 
         disc-shape-condition

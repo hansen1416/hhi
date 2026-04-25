@@ -2,10 +2,10 @@ params:
   seed: -1
 
   algo:
-    name: phc
+    name: hhi
 
   model:
-    name: phc
+    name: hhi
 
   network:
     name: transfer
@@ -25,10 +25,8 @@ params:
         learn_sigma: False
 
     mlp:
-      # units: [2048, 1536, 1024, 1024, 512, 512] # comparable paramter to z_big_task
-      # activation: silu # SiLU(x) = x * sigmoid(x), SiLU is smoother
-      units: [ 2048, 1024, 1024, 512 ]
-      activation: relu
+      units: [ 2048, 1536, 1024, 1024, 512, 512 ] # comparable paramter to z_big_task
+      activation: silu # SiLU(x) = x * sigmoid(x), SiLU is smoother
       d2rl: False
 
       initializer:
@@ -91,7 +89,7 @@ params:
 
     task_reward_w: 0.5
     disc_reward_w: 0.5
-    phc_agent:
+    hhi_agent:
       track_motion_stats: true
       motion_stats_topk: 20
       eval_enabled: true

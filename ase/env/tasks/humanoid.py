@@ -221,12 +221,12 @@ class Humanoid(BaseTask):
 
     def _reset_envs(self, env_ids):
         raise NotImplementedError(
-            "Base Humanoid reset removed. Use HumanoidPHC."
+            "Base Humanoid reset removed. Use HumanoidHHI."
         )
     
     def _reset_actors(self, env_ids):
         raise NotImplementedError(
-        "Base Humanoid reset removed. Use HumanoidPHC."
+        "Base Humanoid reset removed. Use HumanoidHHI."
     )
 
     def _create_ground_plane(self):
@@ -600,7 +600,7 @@ class Humanoid(BaseTask):
 
     def post_physics_step(self):
         raise NotImplementedError(
-            "Base Humanoid reset removed. Use HumanoidPHC."
+            "Base Humanoid reset removed. Use HumanoidHHI."
         )
 
     def render(self, sync_frame_time=False):
