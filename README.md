@@ -33,15 +33,9 @@ python ase/run.py --task HumanoidHHI --cfg_env ase/data/cfg/humanoid_hhi.yaml --
 
 ## Test
 
-`
-python ase/run.py --test --task HumanoidHHI --num_envs 16 --cfg_env ase/data/cfg/humanoid_hhi.yaml --cfg_train ase/data/cfg/train/rlg/hhi_humanoid.yaml --motion_file /home/hlz/datasets/humos_results/000003_female_1e5a1c90.pkl --checkpoint /home/hlz/Documents/humos-128shape-0226/Humanoid_26-15-39-46/nn/Humanoid_1500.pth
-`
-
-python ase/run.py --test --task HumanoidHHI --num_envs 16 --cfg_env ase/data/cfg/humanoid_hhi.yaml --cfg_train ase/data/cfg/train/rlg/hhi_humanoid.yaml --motion_file /home/hlz/datasets/humos_results/000005_female_3c2cfe86.pkl --checkpoint /home/hlz/Documents/128shapes00005/hhi_film.pth
-
 python ase/run.py --test --task HumanoidHHI --num_envs 16 --cfg_env ase/data/cfg/humanoid_hhi.yaml --cfg_train ase/data/cfg/train/rlg/hhi_humanoid.yaml --motion_file /home/hlz/datasets/humos_results_test --checkpoint /home/hlz/Documents/128shapes00005/hhi_film.pth
 
-python ase/run.py --test --task HumanoidHHI --num_envs 16 --cfg_env ase/data/cfg/humanoid_hhi.yaml --cfg_train ase/data/cfg/train/rlg/hhi_humanoid.yaml --motion_file /home/hlz/datasets/humos_results_test --checkpoint /home/hlz/Documents/transfer-learning-1motion-128shapes/hhi_film.pth
+python ase/run.py --test --task HumanoidHHI --num_envs 16 --cfg_env ase/data/cfg/humanoid_hhi.yaml --cfg_train ase/data/cfg/train/rlg/hhi_humanoid.yaml --motion_file /home/hlz/datasets/humos_results_visual0 --checkpoint /home/hlz/Downloads/hhi_film_model_0426_256_32.pth
 
 # This is the lates, looks pretty solid, only a bit twitching
 `
