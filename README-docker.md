@@ -7,7 +7,7 @@ docker pull hansen1416/phc:latest
 cd /home && \
 git clone https://github.com/hansen1416/hhi.git && \
 cd /home/hhi && \
-mkdir -p output artifacts hhi_models && \
+mkdir -p output artifacts hhi_models phc_models && \
 chmod -R 777 output artifacts && \
 apt update && apt install -y zip unzip
 
@@ -18,8 +18,7 @@ gdown 1Xp4IonnXhYrC5kEM0tTov58ovwz4A209
 unzip valid_sorted_start_256_size_32_motions.zip -r ./humos_results/
 unzip smpl_model.zip
 mv smpl_model ase/data/
-
-gdown 15mM1JLHtWXTmjrFF78bEDAQOh46ktsV-
+mv phc_3_Humanoid.pth ./phc_models
 
 -----------------------------
 
