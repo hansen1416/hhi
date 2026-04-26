@@ -39,7 +39,7 @@ This score correlates strongly with imitation difficulty (as validated in the MD
 We use this script to calculate the difficuty scores, `scripts/compute_difficulty_score.py`
 sort them by difficulties, split to batches of size 128 motions.
 
-2. # Solve jittering, change in this commit: https://github.com/hansen1416/hhi/commit/4e0a7cce9bdf0efca71eb15089263130e90b31c6
+2. DISABLED for now, # Solve jittering, change in this commit: https://github.com/hansen1416/hhi/commit/4e0a7cce9bdf0efca71eb15089263130e90b31c6
 
     1. **PD gain tuning first**
     Make the controller more damped: **increase (K_d)** and, if needed, **slightly reduce (K_p)**.
@@ -65,3 +65,6 @@ sort them by difficulties, split to batches of size 128 motions.
     **overdamp the PD controller, low-pass the action/PD target, and add a small action-difference smoothness penalty.**
 
     In your codebase, **PD control is already the actuation path**, and you currently mainly have the imitation reward plus a power penalty, so the **fastest fix is PD tuning + action filter first, then smoothness reward**.
+
+
+3. still need to figure out filter the sittintg positions

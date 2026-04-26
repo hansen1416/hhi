@@ -52,7 +52,7 @@ python ase/run.py --test --task HumanoidHHI --num_envs 16 --cfg_env ase/data/cfg
 ## Visual HUMOS results in PHC format
 
 `
-python ase/run.py --task HumanoidViewMotion --num_envs 4 --cfg_env ase/data/cfg/humanoid_hhi.yaml --cfg_train ase/data/cfg/train/rlg/hhi_humanoid.yaml --motion_file /home/hlz/datasets/humos_results/
+python ase/run.py --task HumanoidViewMotion --num_envs 4 --cfg_env ase/data/cfg/humanoid_hhi.yaml --cfg_train ase/data/cfg/train/rlg/hhi_humanoid.yaml --motion_file /home/hlz/datasets/humos_results_visual/
 `
 
 ## Tensrolog
