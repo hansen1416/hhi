@@ -223,5 +223,30 @@ Verified the reward is maximum when reset the humanoid.
   # processes part 3, etc.
   `python scripts/humos2phc_data_gpu.py 3`
 
-10. figure a fast way to upload humos_phc_results to gdrive
+10. Filter the motion, find out all the motion can not be performed by humanoid in empty space
+
+  # Empty-space invalid motion analysis
+  Input motions: 22459
+  Hard invalid candidates: 1068
+  Soft review candidates: 3543
+  Total flagged candidates: 4611
+
+  ## Hard invalid category counts
+  - furniture_or_seat_support: 217
+  - terrain_or_structure: 205
+  - other_person_or_animal_contact: 188
+  - table_shelf_counter_surface: 182
+  - wall_door_window_structure: 111
+  - obstacle_collision_or_gap: 88
+  - external_support_contact: 53
+  - forceful_object_interaction: 34
+  - environment_medium: 13
+
+  ## Soft review category counts
+  - prop_or_tool_semantic: 3537
+  - sports_or_instrument_semantic: 339
+
+  ## Interpretation
+  - hard_invalid: requires external support, terrain, furniture, wall/door/window/table/shelf/counter/surface, obstacle/collision, another person/animal, water/shower medium, or forceful object interaction.
+  - soft_review: semantically uses props or tools, but may still be acceptable if the generated humanoid is allowed to pantomime the object.
   
