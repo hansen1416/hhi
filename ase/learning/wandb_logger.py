@@ -6,16 +6,26 @@ Hardcoded settings — no config needed.
 
 import wandb
 import os
+import getpass
 from datetime import datetime
 
 
 class WandbLogger:
     def __init__(self):
-        self.enabled = True                     # ← change to False to disable globally
+
+        USER = getpass.getuser()
+
+        if USER == "hlz":
+            self.enabled = False
+        else:
+            self.enabled = True
+
         self.project = "hhi"                    # your project name on wandb
         self.entity = None                      # set to your username/team if needed
         self.log_every = 1                      # log every N epochs
         self.run = None
+
+        self.artifact_name = "hhi_film_model"
 
     def init(self, config_dict=None):
         """Call once at the start of training. run_name is auto-generated if None."""
@@ -25,6 +35,9 @@ class WandbLogger:
 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         run_name = f"hii_film_{timestamp}"
+
+        if config_dict and isinstance(config_dict, dict):
+            self.artifact_name = config_dict.get('wandb_artifact_name', self.artifact_name)
 
         self.run = wandb.init(
             project=self.project,
@@ -68,17 +81,15 @@ class WandbLogger:
             return
 
         artifact = wandb.Artifact(
-            name="hhi_film_model",
+            name=self.artifact_name,
             type="model",
-            description="PHC + FiLM (morphology-conditioned) actor-critic for 128 HUMOS body shapes (64 betas × 2 genders)",
+            description="",
             metadata={
                 "epoch": epoch,
-                "framework": "rl-games + HHIBuilder (FiLM)",
-                "obs_dim": 585,
-                "actor_in_dim": 574,
+                # "obs_dim": 585,
+                # "actor_in_dim": 574,
                 "cond_dim": 11,          # gender + 10 betas
-                "body_shapes": 128,
-                "project_goal": "Convert all non-physical AMASS motions → physically valid motions",
+                "body_shapes": 128
             }
         )
 
@@ -90,7 +101,6 @@ class WandbLogger:
 
         print(f"✅ Uploaded {os.path.basename(checkpoint_path)} → "
             f"https://wandb.ai/yugoamaryl/hhi/artifacts/model/hhi_film_model (latest)")
-
 
 # global singleton — import and use anywhere
 wandb_logger = WandbLogger()

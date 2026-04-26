@@ -93,8 +93,8 @@ class CommonAgent(a2c_continuous.A2CAgent):
         self.obs = self.env_reset()
         self.curr_frames = self.batch_size_envs
         
-        # model_output_file = os.path.join(self.nn_dir, self.config['name'])
-        model_output_file = os.path.join(self.nn_dir, "hhi_film")
+        model_name = self.config.get('wandb_artifact_name', 'hhi_film')
+        model_output_file = os.path.join(self.nn_dir, model_name)
         
         if self.multi_gpu:
             self.hvd.setup_algo(self)
@@ -163,7 +163,7 @@ class CommonAgent(a2c_continuous.A2CAgent):
                         mr = np.mean(mean_rewards) # an average across value heads
                         mr = float(mr.item() if hasattr(mr, "item") else mr)
 
-                        if mr > 50.0:
+                        if mr > 150.0:
                             self.save(model_output_file)
 
                             wandb_logger.log_checkpoint_to_wandb(model_output_file + ".pth", epoch=epoch_num)

@@ -102,3 +102,4 @@ params:
       freeze_obs_rms_per_epoch: true
 
     pretrained_ckpt: "phc_models/phc_3_Humanoid.pth"
+    wandb_artifact_name: "hhi_film_transfer"

@@ -100,3 +100,5 @@ params:
       disc_reward_norm_scale: 0.5
       disc_reward_norm_shift: 0.25
       freeze_obs_rms_per_epoch: true
+
+    wandb_artifact_name: "hhi_film_model"
