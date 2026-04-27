@@ -1,0 +1,9 @@
+seat_support: 657
+terrain_or_structure: 198
+other_person_or_animal: 187
+table_shelf_surface: 174
+wall_door_window: 111
+obstacle_or_gap: 83
+external_support: 53
+forceful_object_interaction: 32
+environment_medium: 13
