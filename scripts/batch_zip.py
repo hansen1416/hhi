@@ -35,7 +35,7 @@ def create_zip_from_sorted_json(
 
     # Sort explicitly by difficulty score, low → high
     sorted_motion_ids = [
-        motion_id for motion_id, score in sorted(data.items(), key=lambda x: x[1])
+        motion_id for motion_id, score in sorted(data.items(), key=lambda x: x[1]['score'])
     ]
 
     batch_items = sorted_motion_ids[start:start + size]
