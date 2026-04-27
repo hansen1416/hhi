@@ -18,10 +18,15 @@ pip install --upgrade pip
 pip install gdown
 
 gdown 1q-IcBL-MUuvtMAjEKi1YREYT6PAh1umQ && \
-gdown 1SGcAjy9YciAFkuAzPtCtKMbAO_A3tfa8 && \
-gdown 1Xp4IonnXhYrC5kEM0tTov58ovwz4A209
+gdown 1SGcAjy9YciAFkuAzPtCtKMbAO_A3tfa8
 
+<!-- valid_sorted_start_288_size_64_motions.zip -->
+gdown 1g-QCgYtS0IuCESMgGm6BjUuDkn_1uh9Y
+
+<!-- hhi_film_phc_transfer_0427_256_32.pth -->
 gdown 1I5BRwMF1rSj4FbZxelpDPWtIHQ0LKnez
+
+<!-- hhi_film_model_0426_256_32.pth -->
 gdown 1l1dy6wz5wVdyc8TLMvAn-sRRXrX7ja6N
 
 unzip valid_sorted_start_256_size_32_motions.zip -d ./humos_results/
