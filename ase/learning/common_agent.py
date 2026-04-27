@@ -72,6 +72,8 @@ class CommonAgent(a2c_continuous.A2CAgent):
 
         self.dataset = amp_datasets.AMPDataset(self.batch_size, self.minibatch_size, self.is_discrete, self.is_rnn, self.ppo_device, self.seq_len)
         self.algo_observer.after_init(self)
+
+        self.best_mean_reward = float("-inf")
         
         return
 
@@ -163,7 +165,8 @@ class CommonAgent(a2c_continuous.A2CAgent):
                         mr = np.mean(mean_rewards) # an average across value heads
                         mr = float(mr.item() if hasattr(mr, "item") else mr)
 
-                        if mr > 150.0:
+                        if mr > 200.0 and mr > self.best_mean_reward:
+                            self.best_mean_reward = mr
                             self.save(model_output_file)
 
                             wandb_logger.log_checkpoint_to_wandb(model_output_file + ".pth", epoch=epoch_num)
