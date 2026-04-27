@@ -4,6 +4,7 @@ import sys
 entity = "yugoamaryl"
 project = "hhi" 
 artifact_name = "hhi_film_model"
+artifact_name = "hhi_film_transfer"
 type_name = "model"
 
 api = wandb.Api()
