@@ -21,6 +21,9 @@ gdown 1q-IcBL-MUuvtMAjEKi1YREYT6PAh1umQ && \
 gdown 1SGcAjy9YciAFkuAzPtCtKMbAO_A3tfa8 && \
 gdown 1Xp4IonnXhYrC5kEM0tTov58ovwz4A209
 
+gdown 1I5BRwMF1rSj4FbZxelpDPWtIHQ0LKnez
+gdown 1l1dy6wz5wVdyc8TLMvAn-sRRXrX7ja6N
+
 unzip valid_sorted_start_256_size_32_motions.zip -d ./humos_results/
 
 unzip smpl_model.zip
