@@ -224,8 +224,10 @@ def main():
     if args.motion_file:
         cfg['env']['motion_file'] = args.motion_file
 
-    if args.load_path:
-        cfg_train['params']['load_path'] = args.load_path
+    if args.checkpoint:
+        cfg_train['params']['load_checkpoint'] = True
+        cfg_train['params']['load_path'] = args.checkpoint
+        cfg_train['params']['config']['load_path'] = args.checkpoint
 
     # Create default directories for weights and statistics
     cfg_train['params']['config']['train_dir'] = args.output_path

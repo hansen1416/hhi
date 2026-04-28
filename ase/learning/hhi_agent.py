@@ -1168,6 +1168,11 @@ class HHIAgent(common_agent.CommonAgent):
         if self._pretrained_ckpt:
             self._load_pretrained_checkpoint()
 
+        if self.config.get('load_path'):
+            ckpt = torch.load(self.config.get('load_path'), map_location=self.ppo_device)
+
+            self._load_pretrained_stats(ckpt)
+
         self._init_amp_demo_buf()
         return
 

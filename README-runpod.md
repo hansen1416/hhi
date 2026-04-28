@@ -8,7 +8,10 @@ cd /home/gymuser/hhi && \
 mkdir -p output artifacts hhi_models phc_models humos_results && \
 chmod -R 777 output artifacts
 
-gdown 1q-IcBL-MUuvtMAjEKi1YREYT6PAh1umQ && \
+<!-- phc_3_Humanoid.pth -->
+gdown 1q-IcBL-MUuvtMAjEKi1YREYT6PAh1umQ
+
+<!-- smpl_model.zip -->
 gdown 1SGcAjy9YciAFkuAzPtCtKMbAO_A3tfa8
 
 <!-- valid_sorted_start_288_size_64_motions.zip -->
@@ -35,6 +38,9 @@ rm valid_sorted_start_256_size_32_motions.zip
 wandb login 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
 
 python ase/run.py --task HumanoidHHI --cfg_env ase/data/cfg/humanoid_hhi.yaml --cfg_train ase/data/cfg/train/rlg/hhi_humanoid.yaml --motion_file /home/gymuser/hhi/humos_results/ --headless
+
+python ase/run.py --task HumanoidHHI --cfg_env ase/data/cfg/humanoid_hhi.yaml --cfg_train ase/data/cfg/train/rlg/hhi_humanoid.yaml --motion_file /home/hlz/datasets/humos_results/ --load_path hhi_film_model_0426_256_32.pth --headless
+
 
 python ase/run.py --task HumanoidTransfer --cfg_env ase/data/cfg/humanoid_hhi.yaml --cfg_train ase/data/cfg/train/rlg/transfer_humanoid.yaml --motion_file /home/gymuser/hhi/humos_results/ --headless
 
