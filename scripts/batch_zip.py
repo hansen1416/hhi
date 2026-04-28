@@ -1,6 +1,6 @@
 """
 python scripts/batch_zip.py \
---json data-processing/valid_sorted_by_difficulty.json \
+--json data-processing/valid_sorted.json \
 --start 0 \
 --size 32 \
 --files-per-motion 1
