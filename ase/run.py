@@ -224,7 +224,7 @@ def main():
     if args.motion_file:
         cfg['env']['motion_file'] = args.motion_file
 
-    if args.checkpoint:
+    if args.checkpoint and os.path.isfile(args.checkpoint):
         cfg_train['params']['load_checkpoint'] = True
         cfg_train['params']['load_path'] = args.checkpoint
         cfg_train['params']['config']['load_path'] = args.checkpoint

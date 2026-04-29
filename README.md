@@ -31,10 +31,10 @@ python ase/run.py --task HumanoidHHI --cfg_env ase/data/cfg/humanoid_hhi.yaml --
 `
 
 <!-- test transfer learning -->
-python ase/run.py --task HumanoidHHI --cfg_env ase/data/cfg/humanoid_hhi.yaml --cfg_train ase/data/cfg/train/rlg/hhi_humanoid.yaml --motion_file /home/hlz/datasets/valid_sorted_start_256_size_32_motions/002175_female_0e26b88d.pkl --checkpoint ~/Downloads/hhi_film_model_0426_256_32.pth --headless
+python ase/run.py --task HumanoidHHI --cfg_env ase/data/cfg/humanoid_hhi.yaml --cfg_train ase/data/cfg/train/rlg/hhi_humanoid.yaml --motion_file /home/hlz/datasets/humos_results/003628_female_093098f0.pkl --checkpoint ~/Downloads/film_256_32_288_64.pth --headless
 
 
-python ase/run.py --task HumanoidTransfer --cfg_env ase/data/cfg/humanoid_hhi.yaml --cfg_train ase/data/cfg/train/rlg/transfer_humanoid.yaml --motion_file /home/hlz/datasets/valid_sorted_start_256_size_32_motions/002175_female_0e26b88d.pkl --checkpoint ~/Downloads/hhi_film_phc_transfer_0427_256_32.pth --headless
+python ase/run.py --task HumanoidTransfer --cfg_env ase/data/cfg/humanoid_hhi.yaml --cfg_train ase/data/cfg/train/rlg/transfer_humanoid.yaml --motion_file /home/hlz/datasets/humos_results/002175_female_0e26b88d.pkl --checkpoint ~/Downloads/transfer_256_32_288_64.pth --headless
 
 
 --
