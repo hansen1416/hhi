@@ -26,6 +26,12 @@ gdown 1l1dy6wz5wVdyc8TLMvAn-sRRXrX7ja6N
 <!-- hhi_film_phc_transfer_0427_256_32.pth -->
 gdown 1I5BRwMF1rSj4FbZxelpDPWtIHQ0LKnez
 
+<!-- film_256_32_288_64.pth -->
+gdown 1uOUXkQp__lA-DTfeZVC6CLbDv7qxt7n2
+
+<!-- transfer_256_32_288_64.pth -->
+gdown 13o8D207zPnrhRwwriVuxwZAQ3w68MNnX
+
 unzip valid_sorted_start_256_size_32_motions.zip -d ./humos_results/
 
 unzip smpl_model.zip && \
@@ -40,12 +46,15 @@ rm valid_sorted_start_256_size_32_motions.zip
 
 wandb login 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
 
+-----------------------------
+
 python ase/run.py --task HumanoidHHI --cfg_env ase/data/cfg/humanoid_hhi.yaml --cfg_train ase/data/cfg/train/rlg/hhi_humanoid.yaml --motion_file /home/gymuser/hhi/humos_results/ --headless
 
-python ase/run.py --task HumanoidHHI --cfg_env ase/data/cfg/humanoid_hhi.yaml --cfg_train ase/data/cfg/train/rlg/hhi_humanoid.yaml --motion_file /home/hlz/datasets/humos_results/ --checkpoint hhi_film_model_0426_256_32.pth --headless
+python ase/run.py --task HumanoidHHI --cfg_env ase/data/cfg/humanoid_hhi.yaml --cfg_train ase/data/cfg/train/rlg/hhi_humanoid.yaml --motion_file ./humos_results/ --checkpoint hhi_film_model_0426_256_32.pth --headless
 
+-----------------------------
 
-python ase/run.py --task HumanoidTransfer --cfg_env ase/data/cfg/humanoid_hhi.yaml --cfg_train ase/data/cfg/train/rlg/transfer_humanoid.yaml --motion_file /home/gymuser/hhi/humos_results/ --headless
+python ase/run.py --task HumanoidTransfer --cfg_env ase/data/cfg/humanoid_hhi.yaml --cfg_train ase/data/cfg/train/rlg/transfer_humanoid.yaml --motion_file ./humos_results/ --headless
 
 python ase/run.py --task HumanoidTransfer --cfg_env ase/data/cfg/humanoid_hhi.yaml --cfg_train ase/data/cfg/train/rlg/transfer_humanoid.yaml --motion_file /home/gymuser/hhi/humos_results/ --checkpoint hhi_film_phc_transfer_0427_256_32.pth --headless
 
