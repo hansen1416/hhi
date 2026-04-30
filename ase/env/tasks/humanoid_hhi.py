@@ -623,14 +623,14 @@ class HumanoidHHI(Humanoid):
         # jiter fix 0423 =======================
         if self.smoothness_reward:
             # smoothness penalty on raw policy action change
-            action_diff = self.actions_raw - self._prev_actions_raw
+            action_diff = self.actions - self._prev_actions_raw
             smooth_reward = -self.smooth_action_coef * torch.sum(action_diff * action_diff, dim=-1)
             smooth_reward[self.progress_buf <= 1] = 0
 
             self.rew_buf[:] += smooth_reward
             self.reward_raw = torch.cat([self.reward_raw, smooth_reward[:, None]], dim=-1)
 
-            self._prev_actions_raw[:] = self.actions_raw
+            self._prev_actions_raw[:] = self.actions
         # jiter fix 0423 =======================
 
         return
