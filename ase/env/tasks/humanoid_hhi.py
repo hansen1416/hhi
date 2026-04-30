@@ -44,7 +44,23 @@ class HumanoidHHI(Humanoid):
         
         self._amp_obs_demo_buf = None
 
+        self.reward_version = 1
+
         self.reward_specs = {"k_pos": 100, "k_rot": 10, "k_vel": 0.1, "k_ang_vel": 0.1, "w_pos": 0.5, "w_rot": 0.3, "w_vel": 0.1, "w_ang_vel": 0.1}
+
+        # reward v1 -----------
+        self.reward_specs_v1 = {
+            "k_root_pos": 80.0,   # strong overall trajectory
+            "k_root_rot": 40.0,
+            "k_key":      120.0,  # feet/hands/head stability
+            "k_vel":      5.0,    # smooth global motion
+            "w_root_pos": 0.40,
+            "w_root_rot": 0.30,
+            "w_key":      0.20,
+            "w_vel":      0.10,
+        }
+        # reward v1 -----------
+
 
         self.power_reward = True
         # self.reward_raw is [num_envs, [r_body_pos, r_body_rot, r_vel, r_ang_vel, power_reward]], and its for debug purpose
@@ -65,8 +81,6 @@ class HumanoidHHI(Humanoid):
         # self._global_offset = torch.zeros(self.num_envs, 3, dtype=torch.float, device=self.device)
         # ---- target motion observation ----
 
-        self.reward_version = 1
-
         # jiter fix 0423 =======================
         if self.smoothness_reward and self.reward_version == 0:
             self.smooth_action_coef = cfg["env"].get("smoothActionCoef", 0.005)
@@ -76,58 +90,13 @@ class HumanoidHHI(Humanoid):
             )
         # jiter fix 0423 =======================
 
-        # reward v1 -----------
-        self.reward_specs_v1 = {
-            # tracking sharpness
-            "k_root_pos": 10.0,
-            "k_root_rot": 10.0,
-            "k_pose": 30.0,
-            "k_com_pos": 20.0,
-            "k_com_vel": 0.5,
-            "k_ee": 40.0,
-            "k_vel": 0.05,
-
-            # positive reward weights, max roughly 1.0
-            "w_root": 0.25,
-            "w_pose": 0.30,
-            "w_com": 0.10,
-            "w_ee": 0.25,
-            "w_vel": 0.10,
-
-            # negative smoothness/contact penalties
-            "lambda_action_smooth": 0.01,
-            "lambda_dof_vel_delta": 0.005,
-            "lambda_foot_slide": 0.05,
-
-            # contact/slide threshold
-            "foot_height_threshold": 0.12,
-        }
-
-        # End-effectors used for stronger coarse body tracking.
-        ee_names = cfg["env"].get(
-            "overallPoseEndEffectors",
-            ["L_Wrist", "R_Wrist", "L_Ankle", "R_Ankle", "Head"]
-        )
-        ee_names = [n for n in ee_names if n in self._body_names]
-        self._overall_pose_ee_ids = self._build_key_body_ids_tensor(ee_names)
-
-        # State buffers for temporal smoothness.
-        self.actions = torch.zeros(
-            (self.num_envs, self.get_action_size()),
-            device=self.device,
-            dtype=torch.float
-        )
-        self._prev_actions = torch.zeros_like(self.actions)
-        self._prev_dof_vel = self._dof_vel.clone()
-        # reward v1 -----------
-
         return
 
     def post_physics_step(self):
         # computes obs_buf inside the base class
         # super().post_physics_step()
 
-        self.progress_buf += 1
+        self.progress_buf += 0
 
         self._refresh_sim_tensors()
 
@@ -471,11 +440,6 @@ class HumanoidHHI(Humanoid):
             self._reset_env_tensors(env_ids)
             self._refresh_sim_tensors()
 
-            # reward v1 -----------
-            self._prev_actions[env_ids] = 0.0
-            self._prev_dof_vel[env_ids] = self._dof_vel[env_ids]
-            # reward v1 -----------
-
             self._compute_observations(env_ids=env_ids, task_obs=task_obs)
 
             # jiter fix 0423 =======================
@@ -659,25 +623,22 @@ class HumanoidHHI(Humanoid):
         body_ang_vel = self._rigid_body_ang_vel
 
         if self.reward_version == 1:
+            # === extract overall pose tensors (no new buffers needed) ===
+            root_pos = body_pos[:, 0, :]
+            root_rot = body_rot[:, 0, :]
+            root_vel = body_vel[:, 0, :]
+
+            key_pos      = body_pos[:, self._key_body_ids, :]
+            ref_root_pos = ref_body_pos[:, 0, :]
+            ref_root_rot = ref_body_rot[:, 0, :]
+            ref_root_vel = ref_body_vel[:, 0, :]
+            ref_key_pos  = ref_body_pos[:, self._key_body_ids, :]
+
+            # === new holistic reward (overall pose + implicit jitter via existing smoothness) ===
             self.rew_buf[:], self.reward_raw = compute_imitation_reward_v1(
-                body_pos,
-                body_rot,
-                body_vel,
-                body_ang_vel,
-                ref_body_pos,
-                ref_body_rot,
-                ref_body_vel,
-                ref_body_ang_vel,
-                self.actions,
-                self._prev_actions,
-                self._dof_vel,
-                self._prev_dof_vel,
-                self._key_body_ids,
-                self._overall_pose_ee_ids,
-                self._contact_body_ids,
-                self.progress_buf,
-                self.reward_specs_v1,
-            )
+                root_pos, root_rot, key_pos, root_vel,
+                ref_root_pos, ref_root_rot, ref_key_pos, ref_root_vel,
+                self.reward_specs_v1)
         else:
             self.rew_buf[:], self.reward_raw = compute_imitation_reward(body_pos, body_rot, body_vel, body_ang_vel, ref_body_pos, ref_body_rot, ref_body_vel, ref_body_ang_vel, self.reward_specs)
 
@@ -702,12 +663,6 @@ class HumanoidHHI(Humanoid):
 
             self._prev_actions_raw[:] = self.actions_raw
         # jiter fix 0423 =======================
-
-        # reward v1 -----------
-        # Update temporal buffers after reward computation.
-        self._prev_actions[:] = self.actions
-        self._prev_dof_vel[:] = self._dof_vel
-        # reward v1 -----------
 
         return
     
@@ -968,240 +923,50 @@ def compute_imitation_reward(body_pos, body_rot, body_vel, body_ang_vel, ref_bod
 
 # reward v1 -----------
 @torch.jit.script
-def compute_imitation_reward_v1(
-    body_pos,
-    body_rot,
-    body_vel,
-    body_ang_vel,
-    ref_body_pos,
-    ref_body_rot,
-    ref_body_vel,
-    ref_body_ang_vel,
-    actions,
-    prev_actions,
-    dof_vel,
-    prev_dof_vel,
-    key_body_ids,
-    ee_body_ids,
-    contact_body_ids,
-    progress_buf,
-    rwd_specs,
-):
-    # type: (Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Dict[str, float]) -> Tuple[Tensor, Tensor]
-
+def compute_imitation_reward_v1(root_pos, root_rot, key_pos, root_vel,
+                                ref_root_pos, ref_root_rot, ref_key_pos, ref_root_vel,
+                                rwd_specs):
+    # type: (Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Dict[str, float]) -> Tuple[Tensor, Tensor]
     k_root_pos = rwd_specs["k_root_pos"]
     k_root_rot = rwd_specs["k_root_rot"]
-    k_pose = rwd_specs["k_pose"]
-    k_com_pos = rwd_specs["k_com_pos"]
-    k_com_vel = rwd_specs["k_com_vel"]
-    k_ee = rwd_specs["k_ee"]
-    k_vel = rwd_specs["k_vel"]
+    k_key      = rwd_specs["k_key"]
+    k_vel      = rwd_specs["k_vel"]
 
-    w_root = rwd_specs["w_root"]
-    w_pose = rwd_specs["w_pose"]
-    w_com = rwd_specs["w_com"]
-    w_ee = rwd_specs["w_ee"]
-    w_vel = rwd_specs["w_vel"]
+    w_root_pos = rwd_specs["w_root_pos"]
+    w_root_rot = rwd_specs["w_root_rot"]
+    w_key      = rwd_specs["w_key"]
+    w_vel      = rwd_specs["w_vel"]
 
-    lambda_action_smooth = rwd_specs["lambda_action_smooth"]
-    lambda_dof_vel_delta = rwd_specs["lambda_dof_vel_delta"]
-    lambda_foot_slide = rwd_specs["lambda_foot_slide"]
-    foot_height_threshold = rwd_specs["foot_height_threshold"]
+    # 1. Overall root position (global trajectory of the whole humanoid)
+    root_pos_err = (root_pos - ref_root_pos).pow(2).mean(dim=-1)
+    r_root_pos = torch.exp(-k_root_pos * root_pos_err)
 
-    B = body_pos.shape[0]
+    # 2. Overall root rotation (global orientation) — NO extra mean here
+    diff_global_root_rot = torch_utils.quat_mul(ref_root_rot, torch_utils.quat_conjugate(root_rot))
+    diff_global_root_angle = torch_utils.quat_to_angle_axis(diff_global_root_rot)[0]
+    root_rot_err = diff_global_root_angle ** 2                     # already per-env scalar angle
+    r_root_rot = torch.exp(-k_root_rot * root_rot_err)
 
-    root_pos = body_pos[:, 0, :]
-    root_rot = body_rot[:, 0, :]
-    root_vel = body_vel[:, 0, :]
+    # 3. Keypoint pose (overall body configuration — feet/hands/head)
+    #    This is the key that makes the reward tolerant to your 128 HUMOS body-shape/gender variations
+    key_err = (key_pos - ref_key_pos).pow(2).mean(dim=-1).mean(dim=-1)
+    r_key = torch.exp(-k_key * key_err)
 
-    ref_root_pos = ref_body_pos[:, 0, :]
-    ref_root_rot = ref_body_rot[:, 0, :]
-    ref_root_vel = ref_body_vel[:, 0, :]
+    # 4. Root velocity tracking (keeps the motion flowing naturally)
+    root_vel_err = (root_vel - ref_root_vel).pow(2).mean(dim=-1)
+    r_vel = torch.exp(-k_vel * root_vel_err)
 
-    heading_inv = torch_utils.calc_heading_quat_inv(root_rot)
-    ref_heading_inv = torch_utils.calc_heading_quat_inv(ref_root_rot)
+    # Force every term to exactly [num_envs] for TorchScript
+    r_root_pos = r_root_pos.view(-1)
+    r_root_rot = r_root_rot.view(-1)
+    r_key      = r_key.view(-1)
+    r_vel      = r_vel.view(-1)
 
-    # ------------------------------------------------------------
-    # 1. Root trajectory/orientation reward
-    # ------------------------------------------------------------
-    # global root-position error
-    root_pos_err = ((ref_root_pos - root_pos) ** 2).mean(dim=-1)
+    reward = (w_root_pos * r_root_pos +
+              w_root_rot * r_root_rot +
+              w_key * r_key +
+              w_vel * r_vel)
 
-    # root orientation error
-    diff_root_rot = torch_utils.quat_mul(ref_root_rot, torch_utils.quat_conjugate(root_rot))
-    diff_root_angle = torch_utils.quat_to_angle_axis(diff_root_rot)[0]
-    root_rot_err = diff_root_angle ** 2
-
-    r_root = torch.exp(-k_root_pos * root_pos_err - k_root_rot * root_rot_err)
-
-    # ------------------------------------------------------------
-    # 2. Root-relative key-body pose reward
-    #    This is the main "overall body pose" term.
-    # ------------------------------------------------------------
-    key_pos = body_pos[:, key_body_ids, :]
-    ref_key_pos = ref_body_pos[:, key_body_ids, :]
-
-    J = key_pos.shape[1]
-
-    key_rel = key_pos - root_pos.unsqueeze(1)
-    ref_key_rel = ref_key_pos - ref_root_pos.unsqueeze(1)
-
-    heading_inv_expand = heading_inv.unsqueeze(1).repeat(1, J, 1)
-    ref_heading_inv_expand = ref_heading_inv.unsqueeze(1).repeat(1, J, 1)
-
-    local_key_rel = quat_rotate(
-        heading_inv_expand.reshape(B * J, 4),
-        key_rel.reshape(B * J, 3)
-    ).view(B, J, 3)
-
-    local_ref_key_rel = quat_rotate(
-        ref_heading_inv_expand.reshape(B * J, 4),
-        ref_key_rel.reshape(B * J, 3)
-    ).view(B, J, 3)
-
-    pose_err = ((local_ref_key_rel - local_key_rel) ** 2).mean(dim=-1).mean(dim=-1)
-    r_pose = torch.exp(-k_pose * pose_err)
-
-    # ------------------------------------------------------------
-    # 3. Proxy COM reward
-    #    This uses mean rigid-body position/velocity as a lightweight COM proxy.
-    # ------------------------------------------------------------
-    com_pos = body_pos.mean(dim=1)
-    ref_com_pos = ref_body_pos.mean(dim=1)
-
-    com_vel = body_vel.mean(dim=1)
-    ref_com_vel = ref_body_vel.mean(dim=1)
-
-    local_com_rel = quat_rotate(heading_inv, com_pos - root_pos)
-    local_ref_com_rel = quat_rotate(ref_heading_inv, ref_com_pos - ref_root_pos)
-
-    local_com_vel = quat_rotate(heading_inv, com_vel)
-    local_ref_com_vel = quat_rotate(ref_heading_inv, ref_com_vel)
-
-    com_pos_err = ((local_ref_com_rel - local_com_rel) ** 2).mean(dim=-1)
-    com_vel_err = ((local_ref_com_vel - local_com_vel) ** 2).mean(dim=-1)
-
-    r_com = torch.exp(-k_com_pos * com_pos_err - k_com_vel * com_vel_err)
-
-    # ------------------------------------------------------------
-    # 4. End-effector reward: hands, feet, head
-    # ------------------------------------------------------------
-    if ee_body_ids.numel() > 0:
-        ee_pos = body_pos[:, ee_body_ids, :]
-        ref_ee_pos = ref_body_pos[:, ee_body_ids, :]
-
-        E = ee_pos.shape[1]
-
-        ee_rel = ee_pos - root_pos.unsqueeze(1)
-        ref_ee_rel = ref_ee_pos - ref_root_pos.unsqueeze(1)
-
-        heading_ee = heading_inv.unsqueeze(1).repeat(1, E, 1)
-        ref_heading_ee = ref_heading_inv.unsqueeze(1).repeat(1, E, 1)
-
-        local_ee = quat_rotate(
-            heading_ee.reshape(B * E, 4),
-            ee_rel.reshape(B * E, 3)
-        ).view(B, E, 3)
-
-        local_ref_ee = quat_rotate(
-            ref_heading_ee.reshape(B * E, 4),
-            ref_ee_rel.reshape(B * E, 3)
-        ).view(B, E, 3)
-
-        ee_err = ((local_ref_ee - local_ee) ** 2).mean(dim=-1).mean(dim=-1)
-        r_ee = torch.exp(-k_ee * ee_err)
-    else:
-        r_ee = torch.ones_like(r_root)
-
-    # ------------------------------------------------------------
-    # 5. Coarse key-body velocity reward
-    # ------------------------------------------------------------
-    key_vel = body_vel[:, key_body_ids, :]
-    ref_key_vel = ref_body_vel[:, key_body_ids, :]
-
-    local_key_vel = quat_rotate(
-        heading_inv_expand.reshape(B * J, 4),
-        key_vel.reshape(B * J, 3)
-    ).view(B, J, 3)
-
-    local_ref_key_vel = quat_rotate(
-        ref_heading_inv_expand.reshape(B * J, 4),
-        ref_key_vel.reshape(B * J, 3)
-    ).view(B, J, 3)
-
-    vel_err = ((local_ref_key_vel - local_key_vel) ** 2).mean(dim=-1).mean(dim=-1)
-    r_vel = torch.exp(-k_vel * vel_err)
-
-    # ------------------------------------------------------------
-    # 6. Smoothness penalties
-    # ------------------------------------------------------------
-    action_delta = ((actions - prev_actions) ** 2).mean(dim=-1)
-    dof_vel_delta = ((dof_vel - prev_dof_vel) ** 2).mean(dim=-1)
-
-    p_action_smooth = -lambda_action_smooth * action_delta
-    p_dof_vel_delta = -lambda_dof_vel_delta * dof_vel_delta
-
-    p_action_smooth = torch.where(
-        progress_buf <= 3,
-        torch.zeros_like(p_action_smooth),
-        p_action_smooth
-    )
-
-    p_dof_vel_delta = torch.where(
-        progress_buf <= 3,
-        torch.zeros_like(p_dof_vel_delta),
-        p_dof_vel_delta
-    )
-
-    # ------------------------------------------------------------
-    # 7. Foot sliding penalty
-    # ------------------------------------------------------------
-    if contact_body_ids.numel() > 0:
-        foot_pos = body_pos[:, contact_body_ids, :]
-        foot_vel = body_vel[:, contact_body_ids, :]
-
-        foot_height = foot_pos[:, :, 2]
-        foot_speed_xy = (foot_vel[:, :, 0:2] ** 2).sum(dim=-1)
-
-        near_ground = foot_height < foot_height_threshold
-        foot_slide = (near_ground.float() * foot_speed_xy).mean(dim=-1)
-
-        p_foot_slide = -lambda_foot_slide * foot_slide
-        p_foot_slide = torch.where(
-            progress_buf <= 3,
-            torch.zeros_like(p_foot_slide),
-            p_foot_slide
-        )
-    else:
-        p_foot_slide = torch.zeros_like(r_root)
-
-    # ------------------------------------------------------------
-    # Final task reward
-    # ------------------------------------------------------------
-    reward = (
-        w_root * r_root
-        + w_pose * r_pose
-        + w_com * r_com
-        + w_ee * r_ee
-        + w_vel * r_vel
-        + p_action_smooth
-        + p_dof_vel_delta
-        + p_foot_slide
-    )
-
-    reward_raw = torch.stack(
-        [
-            r_root,
-            r_pose,
-            r_com,
-            r_ee,
-            r_vel,
-            p_action_smooth,
-            p_dof_vel_delta,
-            p_foot_slide,
-        ],
-        dim=-1,
-    )
-
+    reward_raw = torch.stack([r_root_pos, r_root_rot, r_key, r_vel], dim=-1)
     return reward, reward_raw
 # reward v1 -----------

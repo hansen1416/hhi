@@ -14,6 +14,9 @@ gdown 1q-IcBL-MUuvtMAjEKi1YREYT6PAh1umQ
 <!-- smpl_model.zip -->
 gdown 1SGcAjy9YciAFkuAzPtCtKMbAO_A3tfa8
 
+<!-- simple_walk_motions  -->
+gdown 1pWVFwgkJD5Yc73nar99Emnlb7m4s5z3W
+
 <!-- valid_sorted_start_256_size_32_motions.zip -->
 gdown 1Xp4IonnXhYrC5kEM0tTov58ovwz4A209
 
