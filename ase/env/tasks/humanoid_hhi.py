@@ -44,23 +44,10 @@ class HumanoidHHI(Humanoid):
         
         self._amp_obs_demo_buf = None
 
-        self.reward_version = 1
-
         self.reward_specs = {"k_pos": 100, "k_rot": 10, "k_vel": 0.1, "k_ang_vel": 0.1, "w_pos": 0.5, "w_rot": 0.3, "w_vel": 0.1, "w_ang_vel": 0.1}
 
-        # reward v1 -----------
-        self.reward_specs_v1 = {
-            "k_root_pos": 80.0,   # strong overall trajectory
-            "k_root_rot": 40.0,
-            "k_key":      120.0,  # feet/hands/head stability
-            "k_vel":      5.0,    # smooth global motion
-            "w_root_pos": 0.40,
-            "w_root_rot": 0.30,
-            "w_key":      0.20,
-            "w_vel":      0.10,
-        }
-        # reward v1 -----------
-
+        self.reward_specs = {"k_pos": 50, "k_rot": 30, "k_vel": 0.2, "k_ang_vel": 0.2,
+        "w_pos": 0.45, "w_rot": 0.25, "w_vel": 0.15, "w_ang_vel": 0.15}
 
         self.power_reward = True
         # self.reward_raw is [num_envs, [r_body_pos, r_body_rot, r_vel, r_ang_vel, power_reward]], and its for debug purpose
@@ -82,7 +69,7 @@ class HumanoidHHI(Humanoid):
         # ---- target motion observation ----
 
         # jiter fix 0423 =======================
-        if self.smoothness_reward and self.reward_version == 0:
+        if self.smoothness_reward:
             self.smooth_action_coef = cfg["env"].get("smoothActionCoef", 0.005)
             self._prev_actions_raw = torch.zeros(
                 (self.num_envs, self.get_action_size()),
@@ -622,25 +609,7 @@ class HumanoidHHI(Humanoid):
         body_vel = self._rigid_body_vel
         body_ang_vel = self._rigid_body_ang_vel
 
-        if self.reward_version == 1:
-            # === extract overall pose tensors (no new buffers needed) ===
-            root_pos = body_pos[:, 0, :]
-            root_rot = body_rot[:, 0, :]
-            root_vel = body_vel[:, 0, :]
-
-            key_pos      = body_pos[:, self._key_body_ids, :]
-            ref_root_pos = ref_body_pos[:, 0, :]
-            ref_root_rot = ref_body_rot[:, 0, :]
-            ref_root_vel = ref_body_vel[:, 0, :]
-            ref_key_pos  = ref_body_pos[:, self._key_body_ids, :]
-
-            # === new holistic reward (overall pose + implicit jitter via existing smoothness) ===
-            self.rew_buf[:], self.reward_raw = compute_imitation_reward_v1(
-                root_pos, root_rot, key_pos, root_vel,
-                ref_root_pos, ref_root_rot, ref_key_pos, ref_root_vel,
-                self.reward_specs_v1)
-        else:
-            self.rew_buf[:], self.reward_raw = compute_imitation_reward(body_pos, body_rot, body_vel, body_ang_vel, ref_body_pos, ref_body_rot, ref_body_vel, ref_body_ang_vel, self.reward_specs)
+        self.rew_buf[:], self.reward_raw = compute_imitation_reward(body_pos, body_rot, body_vel, body_ang_vel, ref_body_pos, ref_body_rot, ref_body_vel, ref_body_ang_vel, self.reward_specs)
 
         if self.power_reward:
             power = torch.abs(torch.multiply(self.dof_force_tensor, self._dof_vel)).sum(dim=-1) 
@@ -920,53 +889,3 @@ def compute_imitation_reward(body_pos, body_rot, body_vel, body_ang_vel, ref_bod
     # import ipdb
     # ipdb.set_trace()
     return reward, reward_raw
-
-# reward v1 -----------
-@torch.jit.script
-def compute_imitation_reward_v1(root_pos, root_rot, key_pos, root_vel,
-                                ref_root_pos, ref_root_rot, ref_key_pos, ref_root_vel,
-                                rwd_specs):
-    # type: (Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Dict[str, float]) -> Tuple[Tensor, Tensor]
-    k_root_pos = rwd_specs["k_root_pos"]
-    k_root_rot = rwd_specs["k_root_rot"]
-    k_key      = rwd_specs["k_key"]
-    k_vel      = rwd_specs["k_vel"]
-
-    w_root_pos = rwd_specs["w_root_pos"]
-    w_root_rot = rwd_specs["w_root_rot"]
-    w_key      = rwd_specs["w_key"]
-    w_vel      = rwd_specs["w_vel"]
-
-    # 1. Overall root position (global trajectory of the whole humanoid)
-    root_pos_err = (root_pos - ref_root_pos).pow(2).mean(dim=-1)
-    r_root_pos = torch.exp(-k_root_pos * root_pos_err)
-
-    # 2. Overall root rotation (global orientation) — NO extra mean here
-    diff_global_root_rot = torch_utils.quat_mul(ref_root_rot, torch_utils.quat_conjugate(root_rot))
-    diff_global_root_angle = torch_utils.quat_to_angle_axis(diff_global_root_rot)[0]
-    root_rot_err = diff_global_root_angle ** 2                     # already per-env scalar angle
-    r_root_rot = torch.exp(-k_root_rot * root_rot_err)
-
-    # 3. Keypoint pose (overall body configuration — feet/hands/head)
-    #    This is the key that makes the reward tolerant to your 128 HUMOS body-shape/gender variations
-    key_err = (key_pos - ref_key_pos).pow(2).mean(dim=-1).mean(dim=-1)
-    r_key = torch.exp(-k_key * key_err)
-
-    # 4. Root velocity tracking (keeps the motion flowing naturally)
-    root_vel_err = (root_vel - ref_root_vel).pow(2).mean(dim=-1)
-    r_vel = torch.exp(-k_vel * root_vel_err)
-
-    # Force every term to exactly [num_envs] for TorchScript
-    r_root_pos = r_root_pos.view(-1)
-    r_root_rot = r_root_rot.view(-1)
-    r_key      = r_key.view(-1)
-    r_vel      = r_vel.view(-1)
-
-    reward = (w_root_pos * r_root_pos +
-              w_root_rot * r_root_rot +
-              w_key * r_key +
-              w_vel * r_vel)
-
-    reward_raw = torch.stack([r_root_pos, r_root_rot, r_key, r_vel], dim=-1)
-    return reward, reward_raw
-# reward v1 -----------

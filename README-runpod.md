@@ -57,7 +57,20 @@ python ase/run.py --task HumanoidHHI --cfg_env ase/data/cfg/humanoid_hhi.yaml --
 
 -----------------------------
 
+tmux new -s hhi
+
 python ase/run.py --task HumanoidTransfer --cfg_env ase/data/cfg/humanoid_hhi.yaml --cfg_train ase/data/cfg/train/rlg/transfer_humanoid.yaml --motion_file ./humos_results/ --headless
 
 python ase/run.py --task HumanoidTransfer --cfg_env ase/data/cfg/humanoid_hhi.yaml --cfg_train ase/data/cfg/train/rlg/transfer_humanoid.yaml --motion_file /home/gymuser/hhi/humos_results/ --checkpoint hhi_film_phc_transfer_0427_256_32.pth --headless
 
+------------
+
+# Then detach from tmux by pressing:
+
+`Ctrl+b, then d`
+
+# Later, reconnect with:
+
+`tmux attach -t hhi`
+
+tmux kill-session -t hhi
