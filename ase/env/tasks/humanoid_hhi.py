@@ -65,16 +65,16 @@ class HumanoidHHI(Humanoid):
         # self._global_offset = torch.zeros(self.num_envs, 3, dtype=torch.float, device=self.device)
         # ---- target motion observation ----
 
+        self.reward_version = 1
+
         # jiter fix 0423 =======================
-        if self.smoothness_reward:
+        if self.smoothness_reward and self.reward_version == 0:
             self.smooth_action_coef = cfg["env"].get("smoothActionCoef", 0.005)
             self._prev_actions_raw = torch.zeros(
                 (self.num_envs, self.get_action_size()),
                 device=self.device, dtype=torch.float
             )
         # jiter fix 0423 =======================
-
-        self.reward_vesion = 1
 
         # reward v1 -----------
         self.reward_specs_v1 = {
@@ -100,7 +100,7 @@ class HumanoidHHI(Humanoid):
             "lambda_foot_slide": 0.05,
 
             # contact/slide threshold
-            "foot_height_threshold": 0.08,
+            "foot_height_threshold": 0.12,
         }
 
         # End-effectors used for stronger coarse body tracking.
@@ -658,7 +658,7 @@ class HumanoidHHI(Humanoid):
         body_vel = self._rigid_body_vel
         body_ang_vel = self._rigid_body_ang_vel
 
-        if self.reward_vesion == 1:
+        if self.reward_version == 1:
             self.rew_buf[:], self.reward_raw = compute_imitation_reward_v1(
                 body_pos,
                 body_rot,
@@ -1024,8 +1024,10 @@ def compute_imitation_reward_v1(
     # ------------------------------------------------------------
     # 1. Root trajectory/orientation reward
     # ------------------------------------------------------------
+    # global root-position error
     root_pos_err = ((ref_root_pos - root_pos) ** 2).mean(dim=-1)
 
+    # root orientation error
     diff_root_rot = torch_utils.quat_mul(ref_root_rot, torch_utils.quat_conjugate(root_rot))
     diff_root_angle = torch_utils.quat_to_angle_axis(diff_root_rot)[0]
     root_rot_err = diff_root_angle ** 2
