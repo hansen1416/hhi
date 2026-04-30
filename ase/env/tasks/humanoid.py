@@ -48,7 +48,7 @@ class Humanoid(BaseTask):
 
         self.pd_gain_tuning = False
         self.action_filtering = False
-        self.smoothness_reward= False
+        self.smoothness_reward= True
 
         self.debug_viz = self.cfg["env"]["enableDebugVis"]
         self.plane_static_friction = self.cfg["env"]["plane"]["staticFriction"]
