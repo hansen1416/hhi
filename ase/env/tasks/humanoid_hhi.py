@@ -83,7 +83,7 @@ class HumanoidHHI(Humanoid):
         # computes obs_buf inside the base class
         # super().post_physics_step()
 
-        self.progress_buf += 0
+        self.progress_buf += 1
 
         self._refresh_sim_tensors()
 
