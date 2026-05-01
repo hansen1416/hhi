@@ -1,0 +1,1057 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{longtable}
+\usepackage{array}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    urlcolor=blue,
+    citecolor=blue
+}
+
+\lstdefinestyle{code}{
+    basicstyle=\ttfamily\small,
+    breaklines=true,
+    frame=single,
+    columns=fullflexible,
+    keepspaces=true
+}
+
+\lstset{style=code}
+
+\title{HHI Research Journal}
+\author{}
+\date{}
+
+\begin{document}
+
+\maketitle
+
+\section{Project motivation and scope}
+
+The HHI project is built around the problem of converting non-physical human motion data into physically simulated humanoid motion. The long-term aim is to construct a dataset in which motions originally represented as kinematic human motion, we use AMASS as source, reproduced by a physically controlled humanoid in simulation.
+
+The project is based mainly on three sources of prior work:
+
+\begin{enumerate}
+    \item \textbf{AMP / ASE}: adversarial motion priors and reusable adversarial skill embeddings for physically simulated character control.
+    \item \textbf{PHC}: We adopt a similar target-motion imitation learning strategy.
+    \item \textbf{HUMOS}: used to generate motion variants (2*64=128) across body shapes and genders from AMASS dataset.
+\end{enumerate}
+
+The key extension is **heteromorphic imitation**: the same motion content is associated with multiple humanoid morphologies, parameterized by gender and SMPL betas.
+
+Let the morphology condition be
+
+The morphology condition is represented as an 11-dimensional vector:
+
+\begin{equation}
+    m = [g, \beta_1, \beta_2, \dots, \beta_{10}] \in \mathbb{R}^{11},
+\end{equation}
+
+where $g$ is the gender code and $\beta_1, \dots, \beta_{10}$ are SMPL shape coefficients. The gender convention used in the project is:
+
+\begin{equation}
+    g =
+    \begin{cases}
+        +1, & \text{male},                                            \\
+        -1, & \text{female},                                          \\
+        0,  & \text{not used, since HUMOS only support male/female.}.
+    \end{cases}
+\end{equation}
+
+The current main training direction focuses on male and female bodies. Neutral bodies are supported conceptually but are not the main training target.
+
+\section{Relationship to Existing Projects}
+
+\subsection{ASE and AMP}
+
+ASE and AMP provide the foundation for adversarial motion imitation. AMP introduces a discriminator that distinguishes policy-generated motion from reference motion. This allows the policy to receive style rewards from motion examples rather than relying only on hand-designed imitation terms.
+
+In HHI, this adversarial imitation structure is extended so that the discriminator can also be conditioned on body morphology.
+
+The standard discriminator can be written as:
+
+\begin{equation}
+    D(x),
+\end{equation}
+
+where $x$ is an AMP observation. In HHI, the intended discriminator is:
+
+\begin{equation}
+    D(x, m),
+\end{equation}
+
+where $m$ is the morphology vector. This means the discriminator should judge whether a motion is realistic for the given body shape, rather than judging motion independently of body shape.
+
+\subsection{PHC}
+
+PHC provides useful design patterns for large-scale humanoid control, progressive motion imitation, and transfer learning from pretrained humanoid checkpoints. HHI borrows concepts from PHC, especially for observation design, transfer learning, and possible use of a pretrained PHC-3 checkpoint.
+
+A key issue in the HHI development process is that the current HHI implementation and the later PHC-transfer design use different observation dimensions. These should be treated as separate stages unless a specific commit confirms that they have been unified.
+
+\section{Dataset and Morphology Generation}
+
+\subsection{Body Shape Variations}
+
+The current data-generation plan uses 64 SMPL beta configurations and two genders. Therefore, each source motion can be expanded into:
+
+\begin{equation}
+    64 \times 2 = 128
+\end{equation}
+
+morphology-specific variants.
+
+For each source motion, the system should produce a set of target motions corresponding to different body shapes. This makes it possible to train a controller that is not bound to a single humanoid morphology.
+
+\subsection{HUMOS Output Structure}
+
+The HUMOS inference output is organized as one \texttt{.pt} file per input key. The expected file path is:
+
+\begin{lstlisting}
+output/{keyid}.pt
+\end{lstlisting}
+
+Each file contains a dictionary named \texttt{motion\_out}. The high-level structure is:
+
+\begin{lstlisting}
+motion_out[gender_str][beta_key]
+\end{lstlisting}
+
+where \texttt{gender\_str} belongs to:
+
+\begin{lstlisting}
+{'male', 'neutral', 'female'}
+\end{lstlisting}
+
+Each \texttt{beta\_key} entry contains SMPL-H time-series tensors:
+
+\begin{center}
+    \begin{tabular}{lll}
+        \toprule
+        Field                   & Shape    & Meaning                 \\
+        \midrule
+        \texttt{betas}          & $[T,10]$ & SMPL shape parameters   \\
+        \texttt{gender}         & $[T,1]$  & Gender code             \\
+        \texttt{root\_orient}   & $[T,3]$  & Root orientation        \\
+        \texttt{pose\_body}     & $[T,63]$ & Body pose               \\
+        \texttt{trans}          & $[T,3]$  & Root translation        \\
+        \texttt{offset\_height} & scalar   & Static grounding offset \\
+        \bottomrule
+    \end{tabular}
+\end{center}
+
+The gender values are encoded as:
+
+\begin{equation}
+    \text{female}=-1, \quad \text{neutral}=0, \quad \text{male}=+1.
+\end{equation}
+
+The \texttt{offset\_height} value is computed from frame-0 vertices by taking the minimum value along the up-axis, with a safety margin. This helps ground the motion after retargeting.
+
+\subsection{Generated HUMOS Scale}
+
+The recorded HUMOS generation process used:
+
+\begin{lstlisting}
+python humos/infer.py --cfg humos/configs/cfg_template_test.yml
+\end{lstlisting}
+
+The inference reads processed HumanML3D-style annotations:
+
+\begin{lstlisting}
+humos/annotations/humanml3d/annotations_processed.json
+\end{lstlisting}
+
+The recorded total number of source motion sequences is:
+
+\begin{equation}
+    22459.
+\end{equation}
+
+Each source motion is expanded into 128 morphology variants, resulting from:
+
+\begin{equation}
+    64 \text{ body shapes} \times 2 \text{ genders}.
+\end{equation}
+
+The recorded generated output size is approximately:
+
+\begin{equation}
+    778.054\ \text{GiB}.
+\end{equation}
+
+\subsection{Invalid Motion Filtering}
+
+A filtering stage was introduced to identify motions that are unsuitable for physics-based humanoid imitation. The recorded filtering summary is:
+
+\begin{center}
+    \begin{tabular}{lr}
+        \toprule
+        Category                & Count \\
+        \midrule
+        Input motions           & 22459 \\
+        Hard invalid candidates & 1068  \\
+        Soft review candidates  & 3543  \\
+        Total flagged           & 4611  \\
+        \bottomrule
+    \end{tabular}
+\end{center}
+
+The hard invalid categories include:
+
+\begin{center}
+    \begin{tabular}{lr}
+        \toprule
+        Hard Category                    & Count \\
+        \midrule
+        Furniture or seat support        & 217   \\
+        Terrain or structure             & 205   \\
+        Other person or animal contact   & 188   \\
+        Table, shelf, or counter surface & 182   \\
+        Wall, door, or window structure  & 111   \\
+        Obstacle collision or gap        & 88    \\
+        External support contact         & 53    \\
+        Forceful object interaction      & 34    \\
+        Environment medium               & 13    \\
+        \bottomrule
+    \end{tabular}
+\end{center}
+
+The soft review categories include:
+
+\begin{center}
+    \begin{tabular}{lr}
+        \toprule
+        Soft Category                 & Count \\
+        \midrule
+        Prop or tool semantic         & 3537  \\
+        Sports or instrument semantic & 339   \\
+        \bottomrule
+    \end{tabular}
+\end{center}
+
+Sitting motions remain an unresolved issue. Some sitting-related motions are physically possible but require environmental support, which is not currently represented in the humanoid-only simulation environment. These motions should probably be filtered or handled by a separate environment-aware setup.
+
+\section{Humanoid XML Generation and Asset Loading}
+
+\subsection{Multiple Humanoid Assets}
+
+The HHI environment creates multiple humanoid assets corresponding to different gender and beta keys. Instead of loading only one humanoid XML, the environment loads a set of morphology-specific MJCF files.
+
+The XML files follow a path pattern similar to:
+
+\begin{lstlisting}
+mjcf/smpl/{gender}_{beta_key}_smpl.xml
+\end{lstlisting}
+
+The environment cycles these assets across simulation environments. Each environment is assigned a corresponding morphology key, and this mapping is stored for later motion sampling and shape-conditioned training.
+
+\subsection{XML Compiler Fix}
+
+A key stability fix was applied to the MJCF compiler settings:
+
+\begin{lstlisting}[language=Python]
+compiler = self.tree.getroot().find("compiler")
+compiler.attrib["coordinate"] = "local"
+compiler.attrib["angle"] = "radian"
+\end{lstlisting}
+
+This fix is important because incorrect compiler settings can lead to unstable or incorrectly interpreted humanoid assets.
+
+\subsection{Base Humanoid Properties}
+
+The base humanoid uses the SMPL 24-body structure. The current recorded body and action structure is:
+
+\begin{itemize}[leftmargin=2em]
+    \item Number of actuated DOFs: 69.
+    \item Action dimension: 69.
+    \item DOF observation size: 138.
+    \item Self-observation size: 358.
+\end{itemize}
+
+The self-observation dimension is computed as:
+
+\begin{equation}
+    1 + |B|(3+6+3+3) - 3 = 358,
+\end{equation}
+
+where $|B|=24$ is the number of body links. The final $-3$ removes the global root position components that should not be included directly.
+
+The base humanoid also appends the 11-dimensional morphology vector to the policy observation.
+
+\section{Motion Library: \texttt{MotionLibHUMOS}}
+
+\subsection{Purpose}
+
+\texttt{MotionLibHUMOS} is responsible for loading HUMOS-generated target motions and matching them with the correct humanoid morphology. Unlike a single-shape motion library, this motion library must handle multiple gender and beta combinations.
+
+\subsection{Skeleton Tree Construction}
+
+For every loaded \texttt{(gender, beta\_key)} pair, the motion library constructs a corresponding skeleton tree from the morphology-specific XML file. This ensures that motion loading, forward kinematics, and imitation targets are aligned with the correct body shape.
+
+\subsection{Motion Loading}
+
+During loading, each motion stores or derives:
+
+\begin{itemize}[leftmargin=2em]
+    \item gender;
+    \item beta vector;
+    \item beta key;
+    \item root translation;
+    \item root orientation;
+    \item body pose;
+    \item DOF positions;
+    \item DOF velocities;
+    \item rigid body positions and rotations;
+    \item key body positions;
+    \item the 11-dimensional morphology vector.
+\end{itemize}
+
+The motion library also applies a height correction step through \texttt{fix\_trans\_height}. This uses the SMPL parser and the current beta/gender configuration to estimate the lowest vertex height and correct the translation accordingly.
+
+\subsection{Shape-Matched Motion Sampling}
+
+A key design requirement is that each simulated humanoid should sample target motions matching its own morphology. Therefore, the motion library maintains a mapping:
+
+\begin{lstlisting}
+beta_key_motion_id_mapping[(gender, beta_key)] -> list[motion_id]
+\end{lstlisting}
+
+When the environment resets, it requests motions using the environment's assigned morphology key. This prevents the male humanoid with one beta shape from imitating a target generated for a different body shape.
+
+The sampling operation can be summarized as:
+
+\begin{equation}
+    \text{motion\_id} \sim p(\text{motion} \mid g, \beta\_key).
+\end{equation}
+
+This is one of the central corrections needed for shape-conditioned imitation learning.
+
+\section{Current HHI Environment Design}
+
+\subsection{Environment Class}
+
+The current environment class is:
+
+\begin{lstlisting}
+HumanoidHHI(Humanoid)
+\end{lstlisting}
+
+It extends the base humanoid task with target-motion imitation, AMP observations, HUMOS motion loading, morphology-aware sampling, target markers for visualization, power penalty, and optional smoothness penalty.
+
+\subsection{Reset Procedure}
+
+During reset, the environment:
+
+\begin{enumerate}[leftmargin=2em]
+    \item resets progress, reset, and termination buffers;
+    \item obtains the environment's assigned \texttt{(gender, beta\_key)};
+    \item samples a target motion matching this morphology;
+    \item samples a random motion time during training;
+    \item uses time zero during target-marker playback mode;
+    \item extracts the reference motion state;
+    \item resets the humanoid root, body, and DOF state to match the reference frame;
+    \item recomputes policy observations;
+    \item resets previous-action buffers if smoothness reward or action filtering is enabled.
+\end{enumerate}
+
+This reset logic is important because the humanoid must start from a physically and morphologically consistent state.
+
+\subsection{Post-Physics Step}
+
+After every physics step, the environment:
+
+\begin{enumerate}[leftmargin=2em]
+    \item increments progress buffers;
+    \item refreshes simulator tensors;
+    \item computes target-task observations;
+    \item obtains reference motion states;
+    \item computes imitation reward;
+    \item computes reset conditions;
+    \item updates AMP observation history;
+    \item flattens AMP observations;
+    \item exports AMP observations and AMP shape vectors through \texttt{extras}.
+\end{enumerate}
+
+The AMP outputs are:
+
+\begin{lstlisting}[language=Python]
+self.extras["amp_obs"] = amp_obs_flat
+self.extras["amp_shape"] = self._betas_env
+\end{lstlisting}
+
+This makes the fake policy samples available to the agent and discriminator.
+
+\section{Observation Design}
+
+\subsection{Current Main-Branch Policy Observation}
+
+The current main implementation uses a policy observation of 585 dimensions:
+
+\begin{equation}
+    358 + 216 + 11 = 585.
+\end{equation}
+
+The components are:
+
+\begin{center}
+    \begin{tabular}{lr}
+        \toprule
+        Component           & Dimension \\
+        \midrule
+        Self observation    & 358       \\
+        Task observation v7 & 216       \\
+        Morphology vector   & 11        \\
+        \midrule
+        Total               & 585       \\
+        \bottomrule
+    \end{tabular}
+\end{center}
+
+The task observation v7 uses 24 key bodies, with 9 dimensions per key body:
+
+\begin{equation}
+    24 \times 9 = 216.
+\end{equation}
+
+The final policy observation layout is:
+
+\begin{equation}
+    o = [o_{self}, o_{task}, m].
+\end{equation}
+
+In the current network builder, this is treated as:
+
+\begin{lstlisting}
+obs[:, :574]  -> state and task observation
+obs[:, 574:]  -> morphology condition
+\end{lstlisting}
+
+where:
+
+\begin{equation}
+    574 + 11 = 585.
+\end{equation}
+
+\subsection{Potential Beta Normalization Issue}
+
+The current environment computes a normalized beta tensor:
+
+\begin{lstlisting}[language=Python]
+betas_norm = betas.clone()
+betas_norm[:, 1:] /= 3.0
+\end{lstlisting}
+
+However, the current observation concatenation appends the raw \texttt{betas}, not \texttt{betas\_norm}:
+
+\begin{lstlisting}[language=Python]
+obs = torch.cat([obs, task_obs], dim=-1)
+obs = torch.cat([obs, betas], dim=-1)
+\end{lstlisting}
+
+This should be treated as an open implementation detail. If the FiLM conditioners expect stable scale, normalized beta values may be preferable. If checkpoint compatibility expects raw beta values, raw betas may be acceptable. The important point is that this choice should be explicit rather than accidental.
+
+\subsection{PHC-Transfer Policy Observation}
+
+A later transfer-learning design uses a different observation layout. The PHC-compatible source observation is recorded as 934 dimensions. Adding the 11-dimensional morphology vector gives:
+
+\begin{equation}
+    934 + 11 = 945.
+\end{equation}
+
+This 945-dimensional observation is associated with PHC transfer learning and should not be confused with the current 585-dimensional main-branch implementation.
+
+\section{AMP Observation Design}
+
+\subsection{Current Main-Branch AMP Observation}
+
+The current main-branch AMP observation uses 292 dimensions per step and 10 history steps:
+
+\begin{equation}
+    292 \times 10 = 2920.
+\end{equation}
+
+The per-step AMP observation can be decomposed as:
+
+\begin{equation}
+    13 + 138 + 69 + 72 = 292.
+\end{equation}
+
+The components are:
+
+\begin{center}
+    \begin{tabular}{lr}
+        \toprule
+        Component                  & Dimension \\
+        \midrule
+        Root features              & 13        \\
+        DOF observation            & 138       \\
+        DOF velocity               & 69        \\
+        Key body position features & 72        \\
+        \midrule
+        Per-step total             & 292       \\
+        History steps              & 10        \\
+        Flattened total            & 2920      \\
+        \bottomrule
+    \end{tabular}
+\end{center}
+
+The current discriminator does not append shape directly to the AMP observation. Instead, the discriminator receives:
+
+\begin{lstlisting}
+amp_obs
+amp_shape
+\end{lstlisting}
+
+as separate inputs.
+
+\subsection{PHC-Compatible AMP Observation}
+
+The PHC-transfer notes describe a PHC-compatible AMP observation of 196 dimensions per step and 10 history steps:
+
+\begin{equation}
+    196 \times 10 = 1960.
+\end{equation}
+
+This was introduced to match the pretrained PHC discriminator input size. It involves using a smaller discriminator-relevant observation set rather than the full current 292-dimensional per-step AMP observation.
+
+Therefore, the project currently has two relevant AMP observation regimes:
+
+\begin{center}
+    \begin{tabular}{lll}
+        \toprule
+        Stage               & Per-Step AMP Dim & Flattened AMP Dim \\
+        \midrule
+        Current main HHI    & 292              & 2920              \\
+        PHC-transfer design & 196              & 1960              \\
+        \bottomrule
+    \end{tabular}
+\end{center}
+
+These should be kept separate in the journal unless the implementation is later unified.
+
+\section{Reward Design}
+
+\subsection{Imitation Reward}
+
+The environment uses a target-motion imitation reward with position, rotation, velocity, and angular velocity terms. The reward can be written as:
+
+\begin{equation}
+    r_{imit} =
+    w_p e^{-k_p E_p}
+    + w_r e^{-k_r E_r}
+    + w_v e^{-k_v E_v}
+    + w_\omega e^{-k_\omega E_\omega}.
+\end{equation}
+
+The recorded reward settings are:
+
+\begin{lstlisting}[language=Python]
+{
+    "k_pos": 50,
+    "k_rot": 30,
+    "k_vel": 0.2,
+    "k_ang_vel": 0.2,
+    "w_pos": 0.45,
+    "w_rot": 0.25,
+    "w_vel": 0.15,
+    "w_ang_vel": 0.15
+}
+\end{lstlisting}
+
+\subsection{Power Penalty}
+
+A power penalty is enabled to discourage excessive actuation:
+
+\begin{equation}
+    r_{power} = -\lambda_{power} \sum_j |\tau_j \dot{q}_j|.
+\end{equation}
+
+The recorded default coefficient is:
+
+\begin{equation}
+    \lambda_{power} = 0.00005.
+\end{equation}
+
+The penalty is ignored during the first few frames after reset to avoid punishing initial stabilization:
+
+\begin{lstlisting}[language=Python]
+power_reward[progress_buf <= 3] = 0
+\end{lstlisting}
+
+\subsection{Smoothness Reward}
+
+A smoothness penalty can be used to reduce jitter:
+
+\begin{equation}
+    r_{smooth} = -\lambda_{smooth} \|a_t - a_{t-1}\|^2.
+\end{equation}
+
+The recorded default coefficient is:
+
+\begin{equation}
+    \lambda_{smooth} = 0.005.
+\end{equation}
+
+The current project notes indicate that smoothness reward is enabled, while PD tuning and action filtering are currently disabled by default.
+
+\section{Action Filtering and PD Tuning}
+
+The base humanoid contains support for optional action filtering and PD gain tuning.
+
+\subsection{Action Filtering}
+
+The action filter uses an exponential moving average:
+
+\begin{equation}
+    a_t^f = \alpha a_{t-1}^f + (1-\alpha)a_t.
+\end{equation}
+
+The suggested range from the notes is:
+
+\begin{equation}
+    \alpha \in [0.8, 0.9].
+\end{equation}
+
+This is intended to reduce high-frequency action changes and therefore reduce visible jitter.
+
+\subsection{PD Gain Tuning}
+
+The notes record a possible jitter-mitigation strategy:
+
+\begin{itemize}[leftmargin=2em]
+    \item increase damping $K_d$ by approximately $1.5$ to $2.0$ times;
+    \item reduce stiffness $K_p$ by approximately $0.7$ to $0.9$ times;
+    \item add extra damping for arms if arm jitter remains visible.
+\end{itemize}
+
+This has not yet been fully activated in the current training setup.
+
+\section{Shape-Conditioned Network Design}
+
+\subsection{Overall Design}
+
+The HHI network uses morphology-conditioned FiLM modulation for the actor, critic, and discriminator. The morphology vector is not simply appended to every layer. Instead, it is passed through conditioning networks that produce FiLM parameters.
+
+For a hidden activation $h_i$, FiLM modulation can be written as:
+
+\begin{equation}
+    h_i' = h_i \odot \gamma_i(m) + \beta_i(m),
+\end{equation}
+
+where $\gamma_i(m)$ and $\beta_i(m)$ are generated from the morphology vector.
+
+\subsection{Actor}
+
+The actor receives the 585-dimensional policy observation but internally splits it into:
+
+\begin{lstlisting}
+state/task observation: 574 dims
+morphology condition:  11 dims
+\end{lstlisting}
+
+The actor trunk processes only the 574-dimensional state/task observation. The 11-dimensional morphology vector is processed by a conditioning MLP that generates FiLM parameters for actor hidden layers.
+
+The actor input split is:
+
+\begin{equation}
+    o = [s, m], \quad s \in \mathbb{R}^{574}, \quad m \in \mathbb{R}^{11}.
+\end{equation}
+
+The action output dimension is:
+
+\begin{equation}
+    \dim(a)=69.
+\end{equation}
+
+\subsection{Critic}
+
+Although an earlier comment suggested that the critic was unchanged, the current implementation also reconstructs the critic trunk and applies morphology-conditioned FiLM modulation.
+
+The critic uses the same observation split:
+
+\begin{equation}
+    V(s,m).
+\end{equation}
+
+This is reasonable because body morphology can affect physical difficulty, balance, and achievable imitation quality.
+
+\subsection{Discriminator}
+
+The discriminator receives AMP motion features and the morphology vector separately:
+
+\begin{lstlisting}
+eval_disc(amp_obs, amp_shape)
+\end{lstlisting}
+
+The AMP observation is passed through the discriminator MLP, while \texttt{amp\_shape} is passed through a discriminator conditioning network that generates FiLM parameters.
+
+The shape-conditioned discriminator is therefore:
+
+\begin{equation}
+    D(x,m),
+\end{equation}
+
+where $x$ is the AMP observation and $m$ is the morphology condition.
+
+\subsection{Discriminator Objective}
+
+The discriminator receives three categories of samples:
+
+\begin{itemize}[leftmargin=2em]
+    \item fake policy samples: \texttt{amp\_obs}, \texttt{amp\_shape};
+    \item replay fake samples: \texttt{amp\_obs\_replay}, \texttt{amp\_shape\_replay};
+    \item real demonstration samples: \texttt{amp\_obs\_demo}, \texttt{amp\_shape\_demo}.
+\end{itemize}
+
+The intended discriminator loss can be summarized as:
+
+\begin{equation}
+    \mathcal{L}_D =
+    \frac{1}{2} \mathrm{BCE}(D(x_{fake},m_{fake}),0)
+    + \frac{1}{2} \mathrm{BCE}(D(x_{real},m_{real}),1)
+    + \text{regularizers}.
+\end{equation}
+
+The key conceptual requirement is that real and fake samples must both be shape-conditioned:
+
+\begin{equation}
+    x_{real} \sim p_{data}(x \mid m),
+    \quad
+    x_{fake} \sim p_\pi(x \mid m).
+\end{equation}
+
+\section{HHI Agent Training Loop}
+
+\subsection{High-Level Loop}
+
+The HHI agent follows an AMP/PPO-style training loop:
+
+\begin{enumerate}[leftmargin=2em]
+    \item Roll out the current policy for a fixed horizon.
+    \item Store PPO data, AMP observations, and AMP shape vectors.
+    \item Sample real demonstration AMP observations from the environment.
+    \item Sample replay AMP observations from the fake replay buffer.
+    \item Train actor, critic, and discriminator.
+    \item Store new fake AMP samples into the replay buffer.
+\end{enumerate}
+
+\subsection{AMP Shape Propagation}
+
+The important HHI-specific extension is that every AMP observation must carry its corresponding morphology vector. During rollout, the agent stores:
+
+\begin{lstlisting}
+amp_obs
+amp_shape
+\end{lstlisting}
+
+During dataset preparation, the agent also prepares:
+
+\begin{lstlisting}
+amp_obs_demo
+amp_shape_demo
+amp_obs_replay
+amp_shape_replay
+\end{lstlisting}
+
+This ensures that the discriminator can compare fake and real samples under the correct morphology condition.
+
+\subsection{Replay Buffer}
+
+The fake replay buffer stores both AMP observations and shape vectors. This avoids the incorrect situation where a replayed motion feature is evaluated under the wrong body morphology.
+
+\section{PHC Transfer Learning Stage}
+
+\subsection{Motivation}
+
+Training from scratch on a single motion can produce motion that roughly follows the target but still shows jitter, especially in the arms. Transfer learning from a PHC checkpoint is intended to provide a stronger initial policy and discriminator, allowing the HHI model to learn shape-conditioned imitation more efficiently.
+
+\subsection{Checkpoint Contents}
+
+The PHC checkpoint contains actor, critic, discriminator, normalization statistics, optimizer state, and training metadata. Important entries include:
+
+\begin{lstlisting}
+running_mean_std
+reward_mean_std
+amp_input_mean_std
+model
+epoch
+optimizer
+frame
+last_mean_rewards
+env_state
+\end{lstlisting}
+
+The actor action dimension is inferred from the sigma vector:
+
+\begin{equation}
+    \dim(a)=69.
+\end{equation}
+
+\subsection{PHC Network Size}
+
+The PHC actor/critic MLP structure discussed in the notes uses:
+
+\begin{equation}
+    [2048, 1536, 1024, 1024, 512, 512].
+\end{equation}
+
+The discriminator structure discussed in the notes uses:
+
+\begin{equation}
+    [1024, 512].
+\end{equation}
+
+The actor/critic activation is SiLU, while the discriminator uses ReLU.
+
+\subsection{Selective Weight Loading}
+
+The transfer-learning strategy is to load only compatible parameters from the PHC checkpoint. Parameters are copied when both name and shape match. New HHI-specific modules, such as FiLM conditioning layers, remain randomly initialized.
+
+This avoids forcing incompatible checkpoint tensors into a modified architecture.
+
+The intended logic is:
+
+\begin{lstlisting}[language=Python]
+for key, src_tensor in ckpt_model.items():
+    if key in current_model and current_model[key].shape == src_tensor.shape:
+        current_model[key].copy_(src_tensor)
+    else:
+        skip(key)
+\end{lstlisting}
+
+\subsection{Normalization Statistics}
+
+Normalization statistics must also be loaded selectively. The notes record that:
+
+\begin{itemize}[leftmargin=2em]
+    \item \texttt{amp\_input\_mean\_std} can be loaded when AMP observation dimensions match;
+    \item \texttt{running\_mean\_std} must be skipped if policy observation dimensions differ;
+    \item \texttt{reward\_mean\_std} is intentionally skipped.
+\end{itemize}
+
+A recorded mismatch occurred when trying to load 934-dimensional running statistics into a 945-dimensional observation space. This is expected if morphology is appended to the PHC observation.
+
+\subsection{Ideal Call Site}
+
+The proposed call site for loading PHC weights is inside:
+
+\begin{lstlisting}
+PHCAgent._init_train()
+\end{lstlisting}
+
+The intended order is:
+
+\begin{lstlisting}[language=Python]
+super()._init_train()
+_load_pretrained_phc3()
+_init_amp_demo_buf()
+\end{lstlisting}
+
+This ensures that the model and normalization objects already exist, while training has not yet begun.
+
+\section{Curriculum and Batch Design}
+
+\subsection{Motion-ID Batch Size}
+
+The notes distinguish between source motion IDs and morphology-expanded variants. Since each motion ID expands to 128 morphology variants, loading too many source motion IDs can quickly create a very large effective motion library.
+
+The suggested initial batch size is:
+
+\begin{equation}
+    128 \text{ motion IDs},
+\end{equation}
+
+or:
+
+\begin{equation}
+    64 \text{ motion IDs}
+\end{equation}
+
+if memory is insufficient.
+
+\subsection{Motion Difficulty Score}
+
+A proposed curriculum uses motion difficulty scoring. The recorded features are:
+
+\begin{itemize}[leftmargin=2em]
+    \item maximum horizontal root velocity;
+    \item flight ratio;
+    \item maximum DOF velocity;
+    \item kinetic variance.
+\end{itemize}
+
+The proposed score is:
+
+\begin{equation}
+    \begin{aligned}
+        \mathrm{difficulty} ={} &
+        0.4\,\mathrm{norm}(\mathrm{max\_root\_hvel})                           \\
+                                & + 0.3\,\mathrm{norm}(\mathrm{flight\_ratio}) \\
+                                & + 0.2\,\mathrm{norm}(\mathrm{max\_dof\_vel}) \\
+                                & + 0.1\,\mathrm{norm}(\mathrm{kinetic\_var}).
+    \end{aligned}
+\end{equation}
+
+The recorded script name is:
+
+\begin{lstlisting}
+scripts/compute_difficulty_score.py
+\end{lstlisting}
+
+This curriculum is intended to avoid training immediately on the full, highly diverse, and noisy motion set.
+
+\section{Jitter Problem and Mitigation}
+
+\subsection{Observed Problem}
+
+Early training on a single target motion produced a humanoid that roughly followed the motion but had visible jitter, especially in the arms. Similar jitter appeared both in scratch training and transfer-learning experiments.
+
+This suggests that the issue is not only network initialization. It may also involve:
+
+\begin{itemize}[leftmargin=2em]
+    \item overfitting to a single clip;
+    \item insufficient motion diversity;
+    \item action high-frequency noise;
+    \item PD gain settings;
+    \item weak smoothness regularization;
+    \item mismatch between target kinematics and physically feasible dynamics.
+\end{itemize}
+
+\subsection{Metrics for Jitter}
+
+Possible metrics include:
+
+\begin{itemize}[leftmargin=2em]
+    \item mean joint jerk;
+    \item power spectral density of joint velocities or accelerations;
+    \item torque variance;
+    \item action difference magnitude;
+    \item fall rate;
+    \item per-motion success rate.
+\end{itemize}
+
+Mean joint jerk can be approximated by finite differences:
+
+\begin{equation}
+    \mathrm{jerk} = \frac{1}{T}\sum_t \|\dddot{q}_t\|.
+\end{equation}
+
+\subsection{Mitigation Options}
+
+The current and proposed mitigation options are:
+
+\begin{enumerate}[leftmargin=2em]
+    \item enable or tune smoothness reward;
+    \item apply action EMA filtering;
+    \item tune PD stiffness and damping;
+    \item train on multiple target motions instead of a single clip;
+    \item use curriculum learning;
+    \item use PHC transfer learning;
+    \item quantify jitter before and after each change.
+\end{enumerate}
+
+\section{Current Implementation Status}
+
+The current state can be summarized as follows:
+
+\begin{itemize}[leftmargin=2em]
+    \item HUMOS output generation has been completed at large scale.
+    \item Each source motion can be expanded to 128 morphology variants.
+    \item Humanoid XMLs are generated and loaded per gender/beta key.
+    \item The environment supports morphology-specific assets.
+    \item The motion library supports morphology-specific motion sampling.
+    \item The current policy observation is 585-dimensional on the main implementation path.
+    \item The current AMP observation is 2920-dimensional on the main implementation path.
+    \item The actor, critic, and discriminator are shape-conditioned through FiLM.
+    \item The agent propagates AMP shape vectors for fake, replay, and real samples.
+    \item A PHC-transfer path has been designed with 945-dimensional policy observation and 1960-dimensional AMP observation.
+    \item Smoothness reward support exists and is currently enabled.
+    \item PD tuning and action filtering exist but are currently disabled by default.
+\end{itemize}
+
+\section{Open Issues}
+
+\subsection{Observation-Dimension Split}
+
+There are two observation regimes in the notes:
+
+\begin{center}
+    \begin{tabular}{llll}
+        \toprule
+        Stage             & Policy Obs & AMP Obs & Purpose                                 \\
+        \midrule
+        Current main HHI  & 585        & 2920    & Current shape-conditioned training path \\
+        PHC-transfer path & 945        & 1960    & PHC checkpoint compatibility            \\
+        \bottomrule
+    \end{tabular}
+\end{center}
+
+These should remain clearly separated unless a later implementation unifies them.
+
+\subsection{Beta Normalization}
+
+The current code computes \texttt{betas\_norm} but appends raw \texttt{betas}. This needs to be clarified before long training runs. The choice affects the scale seen by FiLM conditioning networks.
+
+\subsection{Sitting and Environment-Supported Motions}
+
+Motions requiring chairs, tables, walls, objects, terrain, or other people are difficult to imitate in a humanoid-only environment. These should either be filtered or assigned to future environment-aware tasks.
+
+\subsection{Jitter Evaluation}
+
+Qualitative video inspection is useful but insufficient. The project should add quantitative jitter diagnostics, including jerk, torque variance, and high-frequency spectral energy.
+
+\section{Suggested Run Log Template}
+
+Each important run should be recorded using the following format:
+
+\begin{lstlisting}
+Date:
+Commit hash:
+Config files:
+Checkpoint initialized from:
+Observation dim:
+AMP observation dim:
+Number of envs:
+Number of motion IDs:
+Number of morphology variants:
+Reward weights:
+Power coefficient:
+Smoothness settings:
+PD settings:
+Action filtering settings:
+Training duration:
+Mean return:
+Task reward:
+Discriminator reward:
+Discriminator real/fake accuracy:
+Fall rate:
+Per-motion success rate:
+Qualitative result:
+Failure modes:
+Next action:
+\end{lstlisting}
+
+\section{Next Technical Steps}
+
+The immediate next steps are:
+
+\begin{enumerate}[leftmargin=2em]
+    \item decide whether policy morphology input should use raw or normalized beta values;
+    \item verify which branch is used for the next training run: current HHI path or PHC-transfer path;
+    \item add run-level logging for observation dimensions, AMP dimensions, and morphology settings;
+    \item begin training with a controlled subset of motion IDs;
+    \item record jitter metrics in addition to video output;
+    \item keep sitting and environment-supported motions out of the first stable training curriculum.
+\end{enumerate}
+
+\end{document}
