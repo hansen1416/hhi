@@ -5,10 +5,10 @@ The HHI project is built around the problem of converting non-physical human mot
 The project is based mainly on three sources of prior work:
 
 1. **AMP / ASE**: adversarial motion priors and reusable adversarial skill embeddings for physically simulated character control.
-2. **PHC**: Perpetual Humanoid Control, especially its use of large-scale humanoid imitation, progressive training, and checkpoint transfer.
-3. **HUMOS**: Human Motion Model Conditioned on Body Shape, used to generate motion variants across body shapes and genders.
+2. **PHC**: We adopt a similar target-motion imitation learning strategy.
+3. **HUMOS**: used to generate motion variants (2*64=128) across body shapes and genders from AMASS dataset.
 
-The main contribution in this codebase is not simply to train another humanoid imitation policy. The key extension is **heteromorphic imitation**: the same motion content is associated with multiple humanoid morphologies, parameterized by gender and SMPL betas. The policy, critic, discriminator, motion library, and sampling logic are gradually modified to account for this morphology variable.
+The key extension is **heteromorphic imitation**: the same motion content is associated with multiple humanoid morphologies, parameterized by gender and SMPL betas.
 
 Let the morphology condition be
 
@@ -20,7 +20,7 @@ where `g` is encoded as:
 
 - `male` → `+1`
 - `female` → `-1`
-- `neutral` → `0` if needed, although the current training setup uses male and female.
+- `neutral` → `0` not used, since HUMOS only support male/female.
 
 Each target motion can therefore be treated as a pair:
 
