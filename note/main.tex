@@ -199,19 +199,140 @@ motions. These valid motions are stored in: \path{data-processing/valid_motions.
 
 The remaining 20951 motions will be used for the first main HHI training stage. This keeps the training environment simple: the humanoid is expected to move in an empty physical space without chairs, tables, walls, handheld objects, terrain constraints, or other interactive agents.
 
-\section{Humanoid XML Generation and Asset Loading}
+\subsection{Difficulty-Based Curriculum Ordering}
 
-\subsection{Multiple Humanoid Assets}
+After invalid-motion filtering, the remaining valid motions are further ordered by estimated imitation difficulty.
+This step is used to construct a curriculum-learning schedule, so that the agent first learns relatively simple motions and later receives increasingly difficult motions.
 
-The HHI environment creates multiple humanoid assets corresponding to different gender and beta keys. Instead of loading only one humanoid XML, the environment loads a set of morphology-specific MJCF files.
-
-The XML files follow a path pattern similar to:
+We compute a motion difficulty score using:
 
 \begin{lstlisting}
-mjcf/smpl/{gender}_{beta_key}_smpl.xml
+scripts/compute_difficulty_score.py
 \end{lstlisting}
 
-The environment cycles these assets across simulation environments. Each environment is assigned a corresponding morphology key, and this mapping is stored for later motion sampling and shape-conditioned training.
+The score is inspired by the Motion Difficulty Score (MDS) idea, where motions are ranked according to their intrinsic imitation difficulty.
+However, the current implementation uses a lightweight kinematic proxy rather than the full dynamics-based MDS formulation.
+For each motion, the script extracts root motion and joint-pose statistics, then computes:
+
+\begin{equation}
+    d =
+    0.4 v^{max}_{root}
+    + 0.3 r_{flight}
+    + 0.2 v^{max}_{dof}
+    + 0.1 \sigma^2(\|v_{root}\|),
+\end{equation}
+
+where $v^{max}_{root}$ is the maximum horizontal root velocity, $r_{flight}$ is the fraction of frames with aerial upward motion, $v^{max}_{dof}$ is the maximum joint velocity, and $\sigma^2(\|v_{root}\|)$ measures variation in root velocity magnitude.
+
+The raw scores are min--max normalized across the motion set:
+
+\begin{equation}
+    \hat{d}_i =
+    \frac{d_i - d_{min}}{d_{max} - d_{min} + \epsilon}.
+\end{equation}
+
+The valid motions are then sorted from easy to hard according to $\hat{d}_i$.
+The sorted list is divided into curriculum batches:
+
+\begin{equation}
+    \mathcal{C} = \{C_1, C_2, \dots, C_N\},
+\end{equation}
+
+where each batch contains either 64 or 128 motions.
+The current script uses a batch size of 128, while 64 remains an alternative setting to be tested.
+
+During training, the motion sampling pool can be expanded progressively:
+
+\begin{equation}
+    \mathcal{M}_t = \bigcup_{k=1}^{K(t)} C_k,
+\end{equation}
+
+where $K(t)$ increases over training time.
+This means early training uses only easier motions, while later stages include more difficult and dynamic motions.
+The curriculum strategy is borrowed from the difficulty-guided curriculum-learning idea in MDS-based humanoid imitation, where lower-difficulty motions are introduced first and harder motions are progressively added.
+
+The computed difficulty scores are saved to:
+
+\begin{lstlisting}
+data/difficulty_scores.pkl
+\end{lstlisting}
+
+and the sorted curriculum batches are saved to:
+
+\begin{lstlisting}
+data/curriculum_batches.json
+\end{lstlisting}
+
+\section{Humanoid XML Generation and Asset Loading}
+
+\subsection{SMPLSim-Based Humanoid XML Generation}
+
+Before loading multiple humanoid assets into Isaac Gym, we first generate a set of morphology-specific MJCF XML files.
+This is done using a fork of SMPLSim, where SMPL body-shape parameters are converted into simplified humanoid XML assets compatible with the HHI training environment.
+
+For each morphology, we sample a 10-dimensional SMPL beta vector:
+
+\begin{equation}
+    \boldsymbol{\beta} =
+    [\beta_1, \beta_2, \dots, \beta_{10}] \in \mathbb{R}^{10}.
+\end{equation}
+
+The beta parameters are sampled uniformly from the interval $[-3, 3]$:
+
+\begin{equation}
+    \beta_i \sim \mathcal{U}(-3, 3), \quad i = 1,\dots,10.
+\end{equation}
+
+Uniform sampling is used to provide broad and even coverage of the SMPL shape space, rather than concentrating most samples near the neutral body shape.
+In the current setup, we generate 64 beta vectors.
+For each beta vector, two gender-specific humanoid assets are generated:
+
+\begin{equation}
+    g \in \{\text{male}, \text{female}\}.
+\end{equation}
+
+This produces:
+
+\begin{equation}
+    64 \times 2 = 128
+\end{equation}
+
+humanoid XML files in total.
+
+Each humanoid asset is generated through SMPLSim's \texttt{SMPL\_Robot} interface.
+The script uses the SMPL body model and exports the result as an MJCF XML file.
+To improve simulation stability, the generated humanoids use simplified collision and body settings: mesh collision is disabled, feet are replaced with simplified proxies, toes are removed, and hand joints are frozen.
+These choices reduce unstable contacts and unnecessary high-frequency joint behaviour during physics simulation.
+
+The generated XML files follow the naming format:
+
+\begin{lstlisting}
+{gender}_{beta_key}_smpl.xml
+\end{lstlisting}
+
+where \texttt{gender} is either \texttt{male} or \texttt{female}, and \texttt{beta\_key} is a deterministic hexadecimal identifier assigned to each sampled beta vector.
+
+The generated XML files are saved under:
+
+\begin{lstlisting}
+ase/data/assets/mjcf/smpl/
+\end{lstlisting}
+
+The sampled beta dictionary is also saved as:
+
+\begin{lstlisting}
+ase/data/assets/all_betas.pt
+\end{lstlisting}
+
+This file provides the mapping between each \texttt{beta\_key} and its corresponding SMPL beta vector.
+Therefore, each humanoid XML file can be associated with its morphology-conditioning vector:
+
+\begin{equation}
+    \mathbf{m} = [g, \beta_1, \dots, \beta_{10}] \in \mathbb{R}^{11}.
+\end{equation}
+
+These generated XML assets form the morphology pool used by HHI.
+They are later loaded as multiple humanoid assets, allowing the policy, critic, and discriminator to be trained across different body shapes and genders.
 
 \subsection{XML Compiler Fix}
 
