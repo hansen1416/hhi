@@ -351,6 +351,8 @@ This fix is important because incorrect compiler settings can lead to unstable o
 The base humanoid uses the SMPL 24-body structure. The current recorded body and action structure is:
 
 \begin{itemize}[leftmargin=2em]
+    \item Number of body links: 24.
+    \item Number of actuated joints: 23.
     \item Number of actuated DOFs: 69.
     \item Action dimension: 69.
     \item DOF observation size: 138.
@@ -363,9 +365,44 @@ The self-observation dimension is computed as:
     1 + |B|(3+6+3+3) - 3 = 358,
 \end{equation}
 
-where $|B|=24$ is the number of body links. The final $-3$ removes the global root position components that should not be included directly.
+where $|B|=24$ is the number of body links. The terms correspond to root height, local body positions, local body rotations, local body linear velocities, and local body angular velocities. The final $-3$ removes the local root-position component.
 
-The base humanoid also appends the 11-dimensional morphology vector to the policy observation.
+In the HHI-PHC task, this 358-dimensional self-observation is not the full policy observation. The final actor--critic observation is:
+
+\begin{equation}
+    o_{\pi,V}
+        =
+        [
+            o_{\mathrm{self}}^{358},
+            o_{\mathrm{task}}^{216},
+            m^{11}
+        ]
+    \in \mathbb{R}^{585},
+\end{equation}
+
+where $o_{\mathrm{task}}$ is the reference-motion task observation and $m=[g,\beta_1,\ldots,\beta_{10}]$ is the morphology vector.
+
+The actor uses the first 574 dimensions as the state/task input and uses the final 11 morphology dimensions as FiLM conditioning input. The critic currently receives the full 585-dimensional observation.
+
+The discriminator uses a separate AMP observation space rather than the actor--critic observation. Its input is formed from a temporal stack of AMP observations. In the current full-key-body setting, the per-step AMP observation is:
+
+\begin{equation}
+    13 + 138 + 69 + 3|K| = 292,
+\end{equation}
+
+with $|K|=24$, giving:
+
+\begin{equation}
+    292 \times 10 = 2920.
+\end{equation}
+
+For PHC-transfer-compatible training, the discriminator observation should instead be kept at:
+
+\begin{equation}
+    196 \times 10 = 1960,
+\end{equation}
+
+which requires the reduced AMP key-body set and DOF-subset configuration.
 
 \section{Motion Library: \texttt{MotionLibHUMOS}}
 
