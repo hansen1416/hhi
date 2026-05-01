@@ -185,55 +185,19 @@ The recorded generated output size is approximately:
 
 \subsection{Invalid Motion Filtering}
 
-A filtering stage was introduced to identify motions that are unsuitable for physics-based humanoid imitation. The recorded filtering summary is:
+We used ChatGPT and Grok to analyse the natural-language motion descriptions and identify motions that cannot be performed in an empty physical space. These include motions that require external support, furniture, objects, terrain structures, another person, animals, or other environmental interactions that are not represented in the current humanoid-only simulation environment.
 
-\begin{center}
-    \begin{tabular}{lr}
-        \toprule
-        Category                & Count \\
-        \midrule
-        Input motions           & 22459 \\
-        Hard invalid candidates & 1068  \\
-        Soft review candidates  & 3543  \\
-        Total flagged           & 4611  \\
-        \bottomrule
-    \end{tabular}
-\end{center}
+A total of 1508 motions were filtered as invalid across 9 categories. The invalid motion list is stored in \path{data-processing/invalid_motions.txt}
 
-The hard invalid categories include:
+The category-level counts are stored in: \path{data-processing/invalid_category_counts.txt}
 
-\begin{center}
-    \begin{tabular}{lr}
-        \toprule
-        Hard Category                    & Count \\
-        \midrule
-        Furniture or seat support        & 217   \\
-        Terrain or structure             & 205   \\
-        Other person or animal contact   & 188   \\
-        Table, shelf, or counter surface & 182   \\
-        Wall, door, or window structure  & 111   \\
-        Obstacle collision or gap        & 88    \\
-        External support contact         & 53    \\
-        Forceful object interaction      & 34    \\
-        Environment medium               & 13    \\
-        \bottomrule
-    \end{tabular}
-\end{center}
+The original motion set contains: $22459$
 
-The soft review categories include:
+motion sequences. After removing the 1508 invalid motions, the remaining valid set contains: $22459 - 1508 = 20951$
 
-\begin{center}
-    \begin{tabular}{lr}
-        \toprule
-        Soft Category                 & Count \\
-        \midrule
-        Prop or tool semantic         & 3537  \\
-        Sports or instrument semantic & 339   \\
-        \bottomrule
-    \end{tabular}
-\end{center}
+motions. These valid motions are stored in: \path{data-processing/valid_motions.txt}
 
-Sitting motions remain an unresolved issue. Some sitting-related motions are physically possible but require environmental support, which is not currently represented in the humanoid-only simulation environment. These motions should probably be filtered or handled by a separate environment-aware setup.
+The remaining 20951 motions will be used for the first main HHI training stage. This keeps the training environment simple: the humanoid is expected to move in an empty physical space without chairs, tables, walls, handheld objects, terrain constraints, or other interactive agents.
 
 \section{Humanoid XML Generation and Asset Loading}
 
