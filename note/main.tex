@@ -47,9 +47,7 @@ The project is based mainly on three sources of prior work:
     \item \textbf{HUMOS}: used to generate motion variants (2*64=128) across body shapes and genders from AMASS dataset.
 \end{enumerate}
 
-The key extension is **heteromorphic imitation**: the same motion content is associated with multiple humanoid morphologies, parameterized by gender and SMPL betas.
-
-Let the morphology condition be
+The key extension is \textbf{heteromorphic imitation}: the same motion content is associated with multiple humanoid morphologies, parameterized by gender and SMPL betas.
 
 The morphology condition is represented as an 11-dimensional vector:
 
@@ -68,13 +66,11 @@ where $g$ is the gender code and $\beta_1, \dots, \beta_{10}$ are SMPL shape coe
     \end{cases}
 \end{equation}
 
-The current main training direction focuses on male and female bodies. Neutral bodies are supported conceptually but are not the main training target.
-
 \section{Relationship to Existing Projects}
 
-\subsection{ASE and AMP}
+\subsection{AMP/ASE}
 
-ASE and AMP provide the foundation for adversarial motion imitation. AMP introduces a discriminator that distinguishes policy-generated motion from reference motion. This allows the policy to receive style rewards from motion examples rather than relying only on hand-designed imitation terms.
+The source code of AMP/ASE provide the foundation for adversarial motion imitation. AMP introduces a discriminator that distinguishes policy-generated motion from reference motion. This allows the policy to receive style rewards from motion examples rather than relying only on hand-designed imitation terms.
 
 In HHI, this adversarial imitation structure is extended so that the discriminator can also be conditioned on body morphology.
 
@@ -94,9 +90,7 @@ where $m$ is the morphology vector. This means the discriminator should judge wh
 
 \subsection{PHC}
 
-PHC provides useful design patterns for large-scale humanoid control, progressive motion imitation, and transfer learning from pretrained humanoid checkpoints. HHI borrows concepts from PHC, especially for observation design, transfer learning, and possible use of a pretrained PHC-3 checkpoint.
-
-A key issue in the HHI development process is that the current HHI implementation and the later PHC-transfer design use different observation dimensions. These should be treated as separate stages unless a specific commit confirms that they have been unified.
+PHC provides useful design patterns for humanoid control and progressive motion imitation. HHI initially borrowed several concepts from PHC, especially in observation design, transfer learning, and the possible use of a pretrained PHC-3 checkpoint. However, this transfer-learning direction was later abandoned, as the experiments did not show a meaningful improvement over training within the HHI setup.
 
 \section{Dataset and Morphology Generation}
 
@@ -129,7 +123,7 @@ motion_out[gender_str][beta_key]
 where \texttt{gender\_str} belongs to:
 
 \begin{lstlisting}
-{'male', 'neutral', 'female'}
+{'male', 'female'}
 \end{lstlisting}
 
 Each \texttt{beta\_key} entry contains SMPL-H time-series tensors:
@@ -152,7 +146,7 @@ Each \texttt{beta\_key} entry contains SMPL-H time-series tensors:
 The gender values are encoded as:
 
 \begin{equation}
-    \text{female}=-1, \quad \text{neutral}=0, \quad \text{male}=+1.
+    \text{female}=-1, \quad \text{male}=+1.
 \end{equation}
 
 The \texttt{offset\_height} value is computed from frame-0 vertices by taking the minimum value along the up-axis, with a safety margin. This helps ground the motion after retargeting.
