@@ -338,7 +338,7 @@ class HumanoidHHI(Humanoid):
         # ---- target motion observation ----
 
         # [num_env, 585]
-        obs = torch.cat([obs, betas], dim=-1)
+        obs = torch.cat([obs, betas_norm], dim=-1)
 
         if (env_ids is None):
             self.obs_buf[:] = obs
