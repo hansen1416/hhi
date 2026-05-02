@@ -13,7 +13,7 @@ from isaacgym.torch_utils import *
 from poselib.poselib.skeleton.skeleton3d import SkeletonTree
 from utils import torch_utils
 
-class HumanoidHHI(Humanoid):
+class HumanoidHHITraj(Humanoid):
 
     def __init__(self, cfg, sim_params, physics_engine, device_type, device_id, headless):
 
@@ -262,15 +262,13 @@ class HumanoidHHI(Humanoid):
         # 196
         # print(self._num_amp_obs_per_step)
 
-        # ---- target motion observation ----
+        
+        self._num_traj_samples = 1
+
         self._enable_task_obs = True
         self._task_obs_v = 7
-        self._num_task_obs = 9 * len(key_bodies)   # [Δp_local, Δv_local, p*_rel_local]
+        self._num_task_obs = len(key_bodies) * self._num_traj_samples * 9   # [Δp_local, Δv_local, p*_rel_local]
         self._num_obs += self._num_task_obs
-
-        # here self._num_obs == 585. 
-        # 1 + len(self._body_names) * (3 + 6 + 3 + 3) - 3 + 9 * len(key_bodies)
-        # ---- target motion observation ----
 
         return
 
