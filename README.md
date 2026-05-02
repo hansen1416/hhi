@@ -18,8 +18,6 @@ pip install -r requirements.txt
 
 ## Train
 
-python ase/run.py --task HumanoidHHI --cfg_env ase/data/cfg/humanoid_hhi.yaml --cfg_train ase/data/cfg/train/rlg/hhi_humanoid.yaml --motion_file /home/hlz/datasets/humos_results/ --headless
-
 python ase/run.py --task HumanoidHHI --cfg_env ase/data/cfg/humanoid_hhi.yaml --cfg_train ase/data/cfg/train/rlg/hhi_humanoid.yaml --motion_file /home/hlz/datasets/humos_results/003628_female_093098f0.pkl --headless
 
 <!-- test transfer learning -->
@@ -27,11 +25,7 @@ python ase/run.py --task HumanoidHHI --cfg_env ase/data/cfg/humanoid_hhi.yaml --
 
 python ase/run.py --task HumanoidHHITraj --cfg_env ase/data/cfg/humanoid_hhi.yaml --cfg_train ase/data/cfg/train/rlg/hhi_humanoid.yaml --motion_file /home/hlz/datasets/humos_results/003628_female_093098f0.pkl --wandb_artifact hhi_traj --headless
 
-python ase/run.py --task HumanoidHHITraj --cfg_env ase/data/cfg/humanoid_hhi.yaml --cfg_train ase/data/cfg/train/rlg/hhi_humanoid.yaml --motion_file /home/hlz/datasets/humos_results/ --wandb_artifact hhi_traj --headless
-
 python ase/run.py --task HumanoidHHIRootOffset --cfg_env ase/data/cfg/humanoid_hhi.yaml --cfg_train ase/data/cfg/train/rlg/hhi_humanoid.yaml --motion_file /home/hlz/datasets/humos_results/003628_female_093098f0.pkl --wandb_artifact hhi_root_offset --headless
-
-python ase/run.py --task HumanoidHHIRootOffset --cfg_env ase/data/cfg/humanoid_hhi.yaml --cfg_train ase/data/cfg/train/rlg/hhi_humanoid.yaml --motion_file /home/hlz/datasets/humos_results/ --wandb_artifact hhi_root_offset --headless
 
 python ase/run.py --task HumanoidTransfer --cfg_env ase/data/cfg/humanoid_hhi.yaml --cfg_train ase/data/cfg/train/rlg/transfer_humanoid.yaml --motion_file /home/hlz/datasets/humos_results/003628_female_093098f0.pkl --headless
 
