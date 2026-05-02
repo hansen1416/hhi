@@ -129,16 +129,21 @@ class HHIBuilder(network_builder.A2CBuilder):
             #   amp_shape -> disc_cond_mlp -> disc_cond_linear -> gamma/beta
             self._build_disc(amp_input_shape)
 
+            # 585/1449 This is the motion feature dimension seen by the actor and critic.
+            input_shape = kwargs.get("input_shape", [0])[0]
+
+            actor_in_dim = input_shape - self._shape_dim
+
             # Replace the default actor MLP with a new actor MLP that takes only
             # the first 574 dims of the observation. The last 11 dims are handled
             # separately by the FiLM conditioner.
-            self._rebuild_actor_trunk(actor_in_dim=574)
+            self._rebuild_actor_trunk(actor_in_dim=actor_in_dim)
 
             # Build actor-side morphology conditioner:
             #   shape(11) -> cond_mlp -> cond_linear -> gamma/beta for actor layers
             self._build_film_cond()
 
-            self._rebuild_critic_trunk(critic_in_dim=574)
+            self._rebuild_critic_trunk(critic_in_dim=actor_in_dim)
             self._build_critic_film_cond()
 
         def load(self, params):
@@ -436,8 +441,8 @@ class HHIBuilder(network_builder.A2CBuilder):
             For continuous control:
                 mu, sigma
             """
-            state_obs = obs[:, :574]  # State/task features.
-            gender_betas = obs[:, 574:]  # Condition (11 dims).
+            state_obs = obs[:, :-self._shape_dim]  # State/task features.
+            gender_betas = obs[:, -self._shape_dim:]  # Condition (11 dims).
 
             a_out = self.actor_cnn(state_obs)
             a_out = a_out.contiguous().view(a_out.size(0), -1)
@@ -492,8 +497,8 @@ class HHIBuilder(network_builder.A2CBuilder):
             You could later make the critic morphology-aware too, by applying
             the same split-and-FiLM pattern as the actor.
             """
-            state_obs = obs[:, :574]
-            gender_betas = obs[:, 574:]
+            state_obs = obs[:, :-self._shape_dim]
+            gender_betas = obs[:, -self._shape_dim:]
 
             c_out = self.critic_cnn(state_obs)
             c_out = c_out.contiguous().view(c_out.size(0), -1)

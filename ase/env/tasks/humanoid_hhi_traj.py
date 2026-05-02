@@ -261,13 +261,14 @@ class HumanoidHHITraj(Humanoid):
 
         # 196
         # print(self._num_amp_obs_per_step)
-
         
-        self._num_traj_samples = 1
+        self._num_traj_samples = 5
+        self._traj_sample_timestep = 30
 
         self._enable_task_obs = True
         self._task_obs_v = 7
-        self._num_task_obs = len(key_bodies) * self._num_traj_samples * 9   # [Δp_local, Δv_local, p*_rel_local]
+        self._num_task_obs = len(key_bodies) * self._num_traj_samples * 9
+
         self._num_obs += self._num_task_obs
 
         return
@@ -571,6 +572,9 @@ class HumanoidHHITraj(Humanoid):
         if env_ids is None:
             env_ids = torch.arange(self.num_envs, device=self.device, dtype=torch.long)
 
+        num_envs = env_ids.shape[0]
+        num_samples = self._num_traj_samples
+
         root_pos = self._rigid_body_pos[env_ids, 0, :]
         root_rot = self._rigid_body_rot[env_ids, 0, :]
 
@@ -578,22 +582,64 @@ class HumanoidHHITraj(Humanoid):
         body_vel = self._rigid_body_vel[env_ids][:, self._key_body_ids, :]
 
         motion_ids = self._sampled_motion_ids[env_ids]
-        t = self.progress_buf[env_ids].float() * self.dt + \
-            self._motion_start_times[env_ids]
 
-        # reference key positions (and finite-diff key velocities)
-        motion_res      = self._motion_lib.get_motion_state(motion_ids, t)
-        motion_res_next = self._motion_lib.get_motion_state(motion_ids, t + self.dt)
+        base_t = (
+            self.progress_buf[env_ids].float() * self.dt
+            + self._motion_start_times[env_ids]
+        )
 
-        # # anchor into env
-        # offset = self._global_offset[env_ids].unsqueeze(1)
-        # # motion_res["key_pos"].shape is [num_envs, the number of key bodies, 3]
-        # ref_pos = motion_res["key_pos"] + offset
+        # Current reference state, used for reward/reset/visual target.
+        motion_res = self._motion_lib.get_motion_state(motion_ids, base_t)
+        motion_res_next = self._motion_lib.get_motion_state(motion_ids, base_t + self.dt)
 
-        ref_pos = motion_res["key_pos"]
-        ref_vel = ( motion_res_next["key_pos"] - motion_res["key_pos"]) / self.dt
+        # Future target times: [N, S]
+        sample_offsets = (
+            torch.arange(num_samples, device=self.device, dtype=torch.float)
+            * self._traj_sample_timestep
+        )
+        future_t = base_t.unsqueeze(1) + sample_offsets.unsqueeze(0)
 
-        task_obs = compute_task_obs_v7_1step(root_pos, root_rot, body_pos, body_vel, ref_pos, ref_vel)
+        # Flatten for motion lib query: [N*S]
+        future_motion_ids = motion_ids.unsqueeze(1).repeat(1, num_samples).reshape(-1)
+        future_t_flat = future_t.reshape(-1)
+
+        future_res = self._motion_lib.get_motion_state(future_motion_ids, future_t_flat)
+        future_res_next = self._motion_lib.get_motion_state(
+            future_motion_ids, future_t_flat + self.dt
+        )
+
+        ref_pos = future_res["key_pos"]  # [N*S, K, 3]
+        ref_vel = (future_res_next["key_pos"] - future_res["key_pos"]) / self.dt
+
+        # Repeat current simulated state for every future target sample.
+        root_pos_rep = root_pos.unsqueeze(1).repeat(1, num_samples, 1).reshape(-1, 3)
+        root_rot_rep = root_rot.unsqueeze(1).repeat(1, num_samples, 1).reshape(-1, 4)
+
+        body_pos_rep = (
+            body_pos.unsqueeze(1)
+            .repeat(1, num_samples, 1, 1)
+            .reshape(-1, body_pos.shape[1], 3)
+        )
+
+        body_vel_rep = (
+            body_vel.unsqueeze(1)
+            .repeat(1, num_samples, 1, 1)
+            .reshape(-1, body_vel.shape[1], 3)
+        )
+
+        # [N*S, K*9]
+        task_obs = compute_task_obs_v7_1step(
+            root_pos_rep,
+            root_rot_rep,
+            body_pos_rep,
+            body_vel_rep,
+            ref_pos,
+            ref_vel,
+        )
+
+        # [N, S*K*9]
+        task_obs = task_obs.view(num_envs, num_samples, -1)
+        task_obs = task_obs.reshape(num_envs, -1)
 
         return motion_res, motion_res_next, task_obs
     # ---- target motion observation ----
