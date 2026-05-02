@@ -37,7 +37,11 @@ python ase/run.py --task HumanoidTransfer --cfg_env ase/data/cfg/humanoid_hhi.ya
 
 python ase/run.py --test --task HumanoidHHI --num_envs 16 --cfg_env ase/data/cfg/humanoid_hhi.yaml --cfg_train ase/data/cfg/train/rlg/hhi_humanoid.yaml --motion_file /home/hlz/datasets/288_64_test --checkpoint /home/hlz/Downloads/film_256_32_288_64.pth
 
-python ase/run.py --test --task HumanoidHHI --num_envs 16 --cfg_env ase/data/cfg/humanoid_hhi.yaml --cfg_train ase/data/cfg/train/rlg/hhi_humanoid.yaml --motion_file /home/hlz/datasets/simple_walk_motions --checkpoint /home/hlz/Downloads/film_simple_walk_new_reward.pth
+python ase/run.py --test --task HumanoidHHI --num_envs 16 --cfg_env ase/data/cfg/humanoid_hhi.yaml --cfg_train ase/data/cfg/train/rlg/hhi_humanoid.yaml --motion_file /home/hlz/datasets/simple_walk_motions --checkpoint /home/hlz/Downloads/hhi_film_model.pth
+
+python ase/run.py --test --task HumanoidHHITraj --num_envs 16 --cfg_env ase/data/cfg/humanoid_hhi.yaml --cfg_train ase/data/cfg/train/rlg/hhi_humanoid.yaml --motion_file /home/hlz/datasets/simple_walk_motions --checkpoint /home/hlz/Downloads/hhi_traj.pth
+
+python ase/run.py --test --task HumanoidHHIRootOffset --num_envs 16 --cfg_env ase/data/cfg/humanoid_hhi.yaml --cfg_train ase/data/cfg/train/rlg/hhi_humanoid.yaml --motion_file /home/hlz/datasets/simple_walk_motions --checkpoint /home/hlz/Downloads/hhi_root_offset.pth
 
 python ase/run.py --test --task HumanoidTransfer --num_envs 16 --cfg_env ase/data/cfg/humanoid_hhi.yaml --cfg_train ase/data/cfg/train/rlg/transfer_humanoid.yaml --motion_file /home/hlz/datasets/288_64_test --checkpoint /home/hlz/Downloads/transfer_256_32_288_64.pth
 
