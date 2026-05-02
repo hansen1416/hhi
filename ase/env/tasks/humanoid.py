@@ -208,9 +208,20 @@ class Humanoid(BaseTask):
         return
 
     def reset(self, env_ids=None):
+        safe_reset = (env_ids is None) or len(env_ids) == self.num_envs
+
         if (env_ids is None):
             env_ids = to_torch(np.arange(self.num_envs), device=self.device, dtype=torch.long)
         self._reset_envs(env_ids)
+        # why this is necessary? I don't know
+        if safe_reset:
+            print("save reset!============================")
+            # import ipdb; ipdb.set_trace()
+            # print("3resetting here!!!!", self._humanoid_root_states[0, :3] - self._rigid_body_pos[0, 0])
+            # ZL: This way it will simuate one step, then get reset again, squashing any remaining wiredness. Temporary fix
+            self.gym.simulate(self.sim)
+            self._reset_envs(env_ids)
+            torch.cuda.empty_cache()
         return
 
     def set_char_color(self, col, env_ids):
