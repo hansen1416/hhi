@@ -229,6 +229,9 @@ def main():
         cfg_train['params']['load_path'] = args.checkpoint
         cfg_train['params']['config']['load_path'] = args.checkpoint
 
+    if args.wandb_artifact:
+        cfg_train['params']['config']['wandb_artifact_name'] = args.wandb_artifact
+
     # Create default directories for weights and statistics
     cfg_train['params']['config']['train_dir'] = args.output_path
     
