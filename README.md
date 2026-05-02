@@ -27,6 +27,8 @@ python ase/run.py --task HumanoidHHI --cfg_env ase/data/cfg/humanoid_hhi.yaml --
 
 python ase/run.py --task HumanoidHHITraj --cfg_env ase/data/cfg/humanoid_hhi.yaml --cfg_train ase/data/cfg/train/rlg/hhi_humanoid.yaml --motion_file /home/hlz/datasets/humos_results/003628_female_093098f0.pkl --wandb_artifact hhi_traj --headless
 
+python ase/run.py --task HumanoidHHIRootOffset --cfg_env ase/data/cfg/humanoid_hhi.yaml --cfg_train ase/data/cfg/train/rlg/hhi_humanoid.yaml --motion_file /home/hlz/datasets/humos_results/003628_female_093098f0.pkl --wandb_artifact hhi_root_offset --headless
+
 python ase/run.py --task HumanoidTransfer --cfg_env ase/data/cfg/humanoid_hhi.yaml --cfg_train ase/data/cfg/train/rlg/transfer_humanoid.yaml --motion_file /home/hlz/datasets/humos_results/003628_female_093098f0.pkl --headless
 
 python ase/run.py --task HumanoidTransfer --cfg_env ase/data/cfg/humanoid_hhi.yaml --cfg_train ase/data/cfg/train/rlg/transfer_humanoid.yaml --motion_file /home/hlz/datasets/humos_results/002175_female_0e26b88d.pkl --checkpoint ~/Downloads/transfer_256_32_288_64.pth --headless
