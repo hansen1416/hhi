@@ -55,6 +55,10 @@ python ase/run.py --task HumanoidHHI --cfg_env ase/data/cfg/humanoid_hhi.yaml --
 
 python ase/run.py --task HumanoidHHI --cfg_env ase/data/cfg/humanoid_hhi.yaml --cfg_train ase/data/cfg/train/rlg/hhi_humanoid.yaml --motion_file ./humos_results/ --checkpoint hhi_film_model_0426_256_32.pth --headless
 
+python ase/run.py --task HumanoidHHITraj --cfg_env ase/data/cfg/humanoid_hhi.yaml --cfg_train ase/data/cfg/train/rlg/hhi_humanoid.yaml --motion_file /home/gymuser/hhi/humos_results/ --wandb_artifact hhi_traj --headless
+
+python ase/run.py --task HumanoidHHIRootOffset --cfg_env ase/data/cfg/humanoid_hhi.yaml --cfg_train ase/data/cfg/train/rlg/hhi_humanoid.yaml --motion_file /home/gymuser/hhi/humos_results/ --wandb_artifact hhi_root_offset --headless
+
 -----------------------------
 
 tmux new -s hhi
