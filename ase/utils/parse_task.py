@@ -3,6 +3,8 @@ from env.tasks.humanoid_view_motion import HumanoidViewMotion
 from env.tasks.humanoid_hhi import HumanoidHHI
 from env.tasks.humanoid_hhi_traj import HumanoidHHITraj
 from env.tasks.humanoid_hhi_root_offset import HumanoidHHIRootOffset
+from env.tasks.humanoid_record_actions import HumanoidRecordActions
+from env.tasks.humanoid_replay_actions import HumanoidReplayActions
 from env.tasks.humanoid_transfer import HumanoidTransfer
 from env.tasks.vec_task_wrappers import VecTaskPythonWrapper
 

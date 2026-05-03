@@ -49,6 +49,25 @@ python ase/run.py --test --task HumanoidHHIRootOffset --num_envs 16 --cfg_env as
 
 python ase/run.py --test --task HumanoidTransfer --num_envs 16 --cfg_env ase/data/cfg/humanoid_hhi.yaml --cfg_train ase/data/cfg/train/rlg/transfer_humanoid.yaml --motion_file /home/hlz/datasets/288_64_test --checkpoint /home/hlz/Downloads/transfer_256_32_288_64.pth
 
+## Record
+
+python ase/run.py --test \
+  --task HumanoidRecordActions \
+  --num_envs 1 \
+  --cfg_env ase/data/cfg/humanoid_hhi.yaml \
+  --cfg_train ase/data/cfg/train/rlg/hhi_humanoid.yaml \
+  --motion_file /home/hlz/datasets/simple_walk_motions/000005_female_1e5a1c90.pkl \
+  --checkpoint /home/hlz/Downloads/hhi_film_model_simple_walk.pth
+
+## Reply
+
+python ase/run.py --test \
+  --task HumanoidReplayActions \
+  --num_envs 16 \
+  --cfg_env ase/data/cfg/humanoid_hhi.yaml \
+  --cfg_train ase/data/cfg/train/rlg/hhi_humanoid.yaml \
+  --motion_file /home/hlz/datasets/simple_walk_motions/000005_female_1e5a1c90.pkl
+
 # This is the lates, looks pretty solid, only a bit twitching
 `
 python ase/run.py --test --task HumanoidHHI --num_envs 16 --cfg_env ase/data/cfg/humanoid_hhi.yaml --cfg_train ase/data/cfg/train/rlg/hhi_humanoid.yaml --motion_file /home/hlz/datasets/humos_results_test --checkpoint /home/hlz/Downloads/hhi_film_0419.pth

@@ -14,3 +14,5 @@ climate
 
 phc_models/
 *.zip
+
+recorded_policy_actions_hhi/
