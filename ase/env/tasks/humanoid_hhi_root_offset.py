@@ -865,18 +865,29 @@ def compute_imitation_reward(body_pos, body_rot, body_vel, body_ang_vel, ref_bod
     k_ang_vel = 0.1
     k_root = 5.0
     w_pos = 0.5
-    w_rot = 0.3
-    w_vel = 0.1
-    w_ang_vel = 0.1
+    w_rot = 0.25
+    w_vel = 0.05
+    w_ang_vel = 0.0
     w_root = 0.2
 
-    # === ROOT-ALIGNED POSITION REWARD ===
-    root_pos = body_pos[:, 0:1]          # [N, 1, 3]
-    ref_root_pos = ref_body_pos[:, 0:1]
-    ref_body_pos_aligned = ref_body_pos - ref_root_pos + root_pos
+    # # === ROOT-ALIGNED POSITION REWARD ===
+    # root_pos = body_pos[:, 0:1]          # [N, 1, 3]
+    # ref_root_pos = ref_body_pos[:, 0:1]
+    # ref_body_pos_aligned = ref_body_pos - ref_root_pos + root_pos
+    # diff_global_body_pos = ref_body_pos_aligned - body_pos
+
+    # diff_body_pos_dist = (diff_global_body_pos**2).mean(dim=-1).mean(dim=-1)
+    # r_body_pos = torch.exp(-k_pos * diff_body_pos_dist)
+
+    # === ROOT-HEIGHT-ALIGNED POSITION REWARD ===
+    height_offset = body_pos[:, 0:1, 2:3] - ref_body_pos[:, 0:1, 2:3]
+
+    ref_body_pos_aligned = ref_body_pos.clone()
+    ref_body_pos_aligned[..., 2:3] = ref_body_pos_aligned[..., 2:3] + height_offset
+
     diff_global_body_pos = ref_body_pos_aligned - body_pos
 
-    diff_body_pos_dist = (diff_global_body_pos**2).mean(dim=-1).mean(dim=-1)
+    diff_body_pos_dist = (diff_global_body_pos ** 2).mean(dim=-1).mean(dim=-1)
     r_body_pos = torch.exp(-k_pos * diff_body_pos_dist)
 
     # body rotation reward

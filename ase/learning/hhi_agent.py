@@ -368,9 +368,9 @@ class HHIAgent(common_agent.CommonAgent):
         # Runs discriminator on AMP obs to compute style rewards
         amp_rewards = self._calc_amp_rewards(mb_amp_obs, mb_amp_shape)
         # Combine task reward and discriminator reward via configured weights, eg. 0.5, 0.5.
-        mb_rewards = self._combine_rewards(mb_rewards, amp_rewards)
+        cmb_rewards = self._combine_rewards(mb_rewards, amp_rewards)
         # Generalized Advantage Estimation (GAE) or discounted returns.
-        mb_advs = self.discount_values(mb_fdones, mb_values, mb_rewards, mb_next_values)
+        mb_advs = self.discount_values(mb_fdones, mb_values, cmb_rewards, mb_next_values)
         mb_returns = mb_advs + mb_values
         # Flatten rollout tensors into a batch for PPO training.
         # here will pack amp_shape
@@ -1537,6 +1537,7 @@ class HHIAgent(common_agent.CommonAgent):
                 'rewards/mean_reward_rot': train_info['mean_reward_rot'],
                 'rewards/mean_reward_vel': train_info['mean_reward_vel'],
                 'rewards/mean_reward_ang_vel': train_info['mean_reward_ang_vel'],
+                'rewards/mean_reward_root': train_info['mean_reward_root'],
                 'rewards/mean_reward_power': train_info['mean_reward_power'],
                 'rewards/mean_amp_reward': train_info['disc_rewards'].mean().item(),
                 'rewards/mean_task_reward': train_info['task_reward'],
