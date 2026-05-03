@@ -142,8 +142,7 @@ class CommonAgent(a2c_continuous.A2CAgent):
                     train_info['mean_reward_rot'] = mean_raw[1]
                     train_info['mean_reward_vel'] = mean_raw[2]
                     train_info['mean_reward_ang_vel'] = mean_raw[3]
-                    train_info['mean_reward_root'] = mean_raw[4]
-                    train_info['mean_reward_power'] = mean_raw[5]
+                    train_info['mean_reward_power'] = mean_raw[4]
 
                 self.algo_observer.after_print_stats(frame, epoch_num, total_time)
                 

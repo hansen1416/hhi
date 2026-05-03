@@ -1537,7 +1537,6 @@ class HHIAgent(common_agent.CommonAgent):
                 'rewards/mean_reward_rot': train_info['mean_reward_rot'],
                 'rewards/mean_reward_vel': train_info['mean_reward_vel'],
                 'rewards/mean_reward_ang_vel': train_info['mean_reward_ang_vel'],
-                'rewards/mean_reward_root': train_info['mean_reward_root'],
                 'rewards/mean_reward_power': train_info['mean_reward_power'],
                 'rewards/mean_amp_reward': train_info['disc_rewards'].mean().item(),
                 'rewards/mean_task_reward': train_info['task_reward'],

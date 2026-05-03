@@ -17,6 +17,9 @@ gdown 1SGcAjy9YciAFkuAzPtCtKMbAO_A3tfa8
 <!-- simple_walk_motions  -->
 gdown 1pWVFwgkJD5Yc73nar99Emnlb7m4s5z3W
 
+<!-- hhi_film_model_simple_walk.pth -->
+gdown 1Zjh5Brg_MJsZfxfZ5dp8x0L7OxsbXI4v
+
 <!-- valid_sorted_start_256_size_32_motions.zip -->
 gdown 1Xp4IonnXhYrC5kEM0tTov58ovwz4A209
 
@@ -39,9 +42,9 @@ unzip smpl_model.zip && \
 mv smpl_model ase/data/ && \
 rm smpl_model.zip
 
-unzip valid_sorted_start_256_size_32_motions.zip -d ./humos_results/
+unzip simple_walk_motions.zip -d ./humos_results/
 
-rm valid_sorted_start_256_size_32_motions.zip
+rm simple_walk_motions.zip
 
 mv phc_3_Humanoid.pth ./phc_models
 -----------------------------
@@ -52,7 +55,7 @@ wandb login wandb_v1_6iadi9TQi193hMG3iOQxusmE7fV_J9dnnndtocVOvPP0mZ64QQPRLQ7vQv9
 
 python ase/run.py --task HumanoidHHI --cfg_env ase/data/cfg/humanoid_hhi.yaml --cfg_train ase/data/cfg/train/rlg/hhi_humanoid.yaml --motion_file /home/gymuser/hhi/humos_results/ --headless
 
-python ase/run.py --task HumanoidHHI --cfg_env ase/data/cfg/humanoid_hhi.yaml --cfg_train ase/data/cfg/train/rlg/hhi_humanoid.yaml --motion_file ./humos_results/ --checkpoint hhi_film_model_0426_256_32.pth --headless
+python ase/run.py --task HumanoidHHI --cfg_env ase/data/cfg/humanoid_hhi.yaml --cfg_train ase/data/cfg/train/rlg/hhi_humanoid.yaml --motion_file ./humos_results/ --checkpoint hhi_film_model_simple_walk.pth --headless
 
 python ase/run.py --task HumanoidHHITraj --cfg_env ase/data/cfg/humanoid_hhi.yaml --cfg_train ase/data/cfg/train/rlg/hhi_humanoid.yaml --motion_file /home/gymuser/hhi/humos_results/ --wandb_artifact hhi_traj --headless
 
