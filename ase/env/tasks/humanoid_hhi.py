@@ -67,7 +67,7 @@ class HumanoidHHI(Humanoid):
 
         # jiter fix 0423 =======================
         if self.smoothness_reward:
-            self.smooth_action_coef = cfg["env"].get("smoothActionCoef", 0.005)
+            self.smooth_action_coef = cfg["env"].get("smoothActionCoef", 0.05)
             self._prev_actions_raw = torch.zeros(
                 (self.num_envs, self.get_action_size()),
                 device=self.device, dtype=torch.float

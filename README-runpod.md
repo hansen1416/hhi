@@ -35,16 +35,15 @@ gdown 1uOUXkQp__lA-DTfeZVC6CLbDv7qxt7n2
 <!-- transfer_256_32_288_64.pth -->
 gdown 13o8D207zPnrhRwwriVuxwZAQ3w68MNnX
 
-unzip valid_sorted_start_256_size_32_motions.zip -d ./humos_results/
-
 unzip smpl_model.zip && \
 mv smpl_model ase/data/ && \
 rm smpl_model.zip
 
-mv phc_3_Humanoid.pth ./phc_models
+unzip valid_sorted_start_256_size_32_motions.zip -d ./humos_results/
 
 rm valid_sorted_start_256_size_32_motions.zip
 
+mv phc_3_Humanoid.pth ./phc_models
 -----------------------------
 
 wandb login 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
