@@ -44,7 +44,7 @@ class HumanoidHHIRootOffset(Humanoid):
         
         self._amp_obs_demo_buf = None
 
-        self.reward_specs = {"k_pos": 100, "k_rot": 10, "k_vel": 0.1, "k_ang_vel": 0.1, "w_pos": 0.5, "w_rot": 0.3, "w_vel": 0.1, "w_ang_vel": 0.1}
+        # self.reward_specs = {"k_pos": 100, "k_rot": 10, "k_vel": 0.1, "k_ang_vel": 0.1, "w_pos": 0.5, "w_rot": 0.3, "w_vel": 0.1, "w_ang_vel": 0.1}
 
         self.power_reward = True
         # self.reward_raw is [num_envs, [r_body_pos, r_body_rot, r_vel, r_ang_vel, power_reward]], and its for debug purpose
@@ -606,7 +606,7 @@ class HumanoidHHIRootOffset(Humanoid):
         body_vel = self._rigid_body_vel
         body_ang_vel = self._rigid_body_ang_vel
 
-        self.rew_buf[:], self.reward_raw = compute_imitation_reward(body_pos, body_rot, body_vel, body_ang_vel, ref_body_pos, ref_body_rot, ref_body_vel, ref_body_ang_vel, self.reward_specs)
+        self.rew_buf[:], self.reward_raw = compute_imitation_reward(body_pos, body_rot, body_vel, body_ang_vel, ref_body_pos, ref_body_rot, ref_body_vel, ref_body_ang_vel)
 
         if self.power_reward:
             power = torch.abs(torch.multiply(self.dof_force_tensor, self._dof_vel)).sum(dim=-1) 
@@ -855,19 +855,26 @@ def compute_humanoid_reset(reset_buf, progress_buf, contact_buf, contact_body_id
 
 
 @torch.jit.script
-def compute_imitation_reward(body_pos, body_rot, body_vel, body_ang_vel, ref_body_pos, ref_body_rot, ref_body_vel, ref_body_ang_vel, rwd_specs):
-    # type: (Tensor, Tensor, Tensor, Tensor, Tensor, Tensor,Tensor, Tensor, Dict[str, float]) -> Tuple[Tensor, Tensor]
-    k_pos, k_rot, k_vel, k_ang_vel = rwd_specs["k_pos"], rwd_specs["k_rot"], rwd_specs["k_vel"], rwd_specs["k_ang_vel"]
-    w_pos, w_rot, w_vel, w_ang_vel = rwd_specs["w_pos"], rwd_specs["w_rot"], rwd_specs["w_vel"], rwd_specs["w_ang_vel"]
+def compute_imitation_reward(body_pos, body_rot, body_vel, body_ang_vel, ref_body_pos, ref_body_rot, ref_body_vel, ref_body_ang_vel):
 
-    # === NEW: root-aligned position reward (handles height/shape variation) ===
+    # reward_specs = {"k_pos": 100, "k_rot": 10, "k_vel": 0.1, "k_ang_vel": 0.1, "w_pos": 0.5, "w_rot": 0.3, "w_vel": 0.1, "w_ang_vel": 0.1}
+
+    k_pos = 100
+    k_rot = 10
+    k_vel = 0.1
+    k_ang_vel = 0.1
+    k_root = 5.0
+    w_pos = 0.5
+    w_rot = 0.3
+    w_vel = 0.1
+    w_ang_vel = 0.1
+    w_root = 0.2
+
+    # === ROOT-ALIGNED POSITION REWARD ===
     root_pos = body_pos[:, 0:1]          # [N, 1, 3]
     ref_root_pos = ref_body_pos[:, 0:1]
-
-    # Option B (if you prefer fully local pose reward): use relative coordinates
-    ref_body_pos_rel = ref_body_pos - ref_root_pos
-    body_pos_rel     = body_pos - root_pos
-    diff_global_body_pos = ref_body_pos_rel - body_pos_rel
+    ref_body_pos_aligned = ref_body_pos - ref_root_pos + root_pos
+    diff_global_body_pos = ref_body_pos_aligned - body_pos
 
     diff_body_pos_dist = (diff_global_body_pos**2).mean(dim=-1).mean(dim=-1)
     r_body_pos = torch.exp(-k_pos * diff_body_pos_dist)
@@ -888,8 +895,21 @@ def compute_imitation_reward(body_pos, body_rot, body_vel, body_ang_vel, ref_bod
     diff_global_ang_vel_dist = (diff_global_ang_vel**2).mean(dim=-1).mean(dim=-1)
     r_ang_vel = torch.exp(-k_ang_vel * diff_global_ang_vel_dist)
 
-    reward = w_pos * r_body_pos + w_rot * r_body_rot + w_vel * r_vel + w_ang_vel * r_ang_vel
-    reward_raw = torch.stack([r_body_pos, r_body_rot, r_vel, r_ang_vel], dim=-1)
+    # === NEW: Full 3D Root reward (XYZ) ===
+    root     = body_pos[:, 0:1, :]           # [N, 1, 3]
+    ref_root = ref_body_pos[:, 0:1, :]       # [N, 1, 3]
+    root_dist = ((root - ref_root) ** 2).mean(dim=-1).squeeze(-1)
+    r_root   = torch.exp(-k_root * root_dist)
+
+    # final weighted reward
+    reward = (w_pos * r_body_pos +
+              w_rot * r_body_rot +
+              w_vel * r_vel +
+              w_ang_vel * r_ang_vel +
+              w_root * r_root)
+
+    # UPDATED STACK LINE (this is the exact change you asked for)
+    reward_raw = torch.stack([r_body_pos, r_body_rot, r_vel, r_ang_vel, r_root], dim=-1)
     # import ipdb
     # ipdb.set_trace()
     return reward, reward_raw
