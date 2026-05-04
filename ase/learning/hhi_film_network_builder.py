@@ -58,7 +58,7 @@ import numpy as np
 DISC_LOGIT_INIT_SCALE = 1.0
 
 
-class HHIBuilder(network_builder.A2CBuilder):
+class HHIFilmBuilder(network_builder.A2CBuilder):
     """Wrapper for rl_games to build the PHC actor-critic + discriminator."""
 
     def __init__(self, **kwargs):
@@ -723,4 +723,4 @@ class HHIBuilder(network_builder.A2CBuilder):
 
         rl_games calls this builder to construct the actual neural network object.
         """
-        return HHIBuilder.Network(self.params, **kwargs)
+        return HHIFilmBuilder.Network(self.params, **kwargs)

@@ -19,6 +19,7 @@ from learning import hhi_agent
 from learning import hhi_players
 from learning import hhi_models
 from learning import hhi_network_builder
+from learning import hhi_film_network_builder
 from learning import transfer_network_builder
 
 from ase.learning.wandb_logger import wandb_logger
@@ -153,6 +154,7 @@ def build_alg_runner(algo_observer):
     runner.model_builder.model_factory.register_builder('hhi', lambda network, **kwargs : hhi_models.ModelPHCContinuous(network))  
     
     runner.model_builder.network_factory.register_builder('hhi', lambda **kwargs : hhi_network_builder.HHIBuilder())
+    runner.model_builder.network_factory.register_builder('hhi_film', lambda **kwargs : hhi_film_network_builder.HHIFilmBuilder())
     runner.model_builder.network_factory.register_builder('transfer', lambda **kwargs : transfer_network_builder.TransferBuilder())
     
     return runner
@@ -172,7 +174,9 @@ def main():
 
         num_actors = 16
 
-        cfg['env']['numEnvs'] = num_actors
+        if cfg['env'].get('numEnvs', 1) > num_actors:
+            cfg['env']['numEnvs'] = num_actors
+
         cfg_train['params']['config']['horizon_length'] = 4
         # the PPO optimization minibatch size after the rollout batch is flattened
         # controls how many rollout samples are consumed in one gradient step for actor-critic training.
