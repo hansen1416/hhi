@@ -55,7 +55,7 @@ python ase/run.py --test \
   --task HumanoidRecordActions \
   --num_envs 1 \
   --cfg_env ase/data/cfg/humanoid_hhi.yaml \
-  --cfg_train ase/data/cfg/train/rlg/hhi_humanoid.yaml \
+  --cfg_train ase/data/cfg/train/rlg/hhi_film_humanoid.yaml \
   --motion_file /home/hlz/datasets/simple_walk_motions/000005_female_1e5a1c90.pkl \
   --checkpoint /home/hlz/Downloads/hhi_film_model_simple_walk.pth
 
@@ -63,9 +63,9 @@ python ase/run.py --test \
 
 python ase/run.py --test \
   --task HumanoidReplayActions \
-  --num_envs 16 \
+  --num_envs 1 \
   --cfg_env ase/data/cfg/humanoid_hhi.yaml \
-  --cfg_train ase/data/cfg/train/rlg/hhi_humanoid.yaml \
+  --cfg_train ase/data/cfg/train/rlg/hhi_film_humanoid.yaml \
   --motion_file /home/hlz/datasets/simple_walk_motions/000005_female_1e5a1c90.pkl
 
 # This is the lates, looks pretty solid, only a bit twitching
