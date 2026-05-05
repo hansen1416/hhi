@@ -18,6 +18,8 @@ pip install -r requirements.txt
 
 ## Train
 
+python ase/run.py --task HumanoidHHI --cfg_env ase/data/cfg/humanoid_hhi.yaml --cfg_train ase/data/cfg/train/rlg/hhi_film_humanoid.yaml --motion_file /home/hlz/datasets/simple_walk_motions/000005_female_0e26b88d.pkl --headless
+
 python ase/run.py --task HumanoidHHI --cfg_env ase/data/cfg/humanoid_hhi.yaml --cfg_train ase/data/cfg/train/rlg/hhi_humanoid.yaml --motion_file /home/hlz/datasets/humos_results/003628_female_093098f0.pkl --headless
 
 <!-- test transfer learning -->
