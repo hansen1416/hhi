@@ -407,13 +407,15 @@ class HumanoidHHI(Humanoid):
 
             target_root_pos     = motion_res["root_pos"]
             target_root_rot     = motion_res["root_rot"]
-            self.ref_dof_pos[:]      = motion_res["dof_pos"]
+            target_dof_pos      = motion_res["dof_pos"]
             target_root_vel     = motion_res["root_vel"]
             target_root_ang_vel = motion_res["root_ang_vel"]
             target_dof_vel      = motion_res["dof_vel"]
             target_key_pos      = motion_res["key_pos"]
 
-            self._reset_actors(env_ids, target_root_pos, target_root_rot, self.ref_dof_pos[:], target_root_vel, target_root_ang_vel, target_dof_vel)
+            self.ref_dof_pos[env_ids] = target_dof_pos
+
+            self._reset_actors(env_ids, target_root_pos, target_root_rot, target_dof_pos, target_root_vel, target_root_ang_vel, target_dof_vel)
             self._reset_env_tensors(env_ids)
             self._refresh_sim_tensors()
 
