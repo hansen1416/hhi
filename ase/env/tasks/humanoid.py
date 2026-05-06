@@ -55,6 +55,8 @@ class Humanoid(BaseTask):
         self._local_root_obs = self.cfg["env"]["localRootObs"]
         self._root_height_obs = self.cfg["env"].get("rootHeightObs", True)
         self._enable_early_termination = self.cfg["env"]["enableEarlyTermination"]
+
+        self._res_action = True
         
         key_bodies = self.cfg["env"]["keyBodies"]
         self._setup_character_props(key_bodies)
@@ -148,6 +150,13 @@ class Humanoid(BaseTask):
         # also MotionLib is configured to output only those key bodies `self._key_body_ids`
         self._key_body_ids = self._build_key_body_ids_tensor(key_bodies)
         self._contact_body_ids = self._build_contact_body_ids_tensor(contact_bodies)
+
+        # the reference dof_pos
+        self.ref_dof_pos = torch.zeros(
+            (self.num_envs, self.num_dof),
+            device=self.device,
+            dtype=torch.float
+        )
 
         return
 
@@ -579,7 +588,18 @@ class Humanoid(BaseTask):
         return body_ids
 
     def _action_to_pd_targets(self, action):
-        pd_tar = self._pd_action_offset + self._pd_action_scale * action
+        if self._res_action:
+            # ref_dof_pos must be [num_envs, num_dof]
+            pd_tar = self.ref_dof_pos + self._pd_action_scale * action
+
+            # keep target near current simulated pose
+            pd_lower = self._dof_pos - np.pi / 2
+            pd_upper = self._dof_pos + np.pi / 2
+            pd_tar = torch.clamp(pd_tar, min=pd_lower, max=pd_upper)
+            # pd_tar = torch.maximum(torch.minimum(pd_tar, pd_upper), pd_lower)
+        else:
+            pd_tar = self._pd_action_offset + self._pd_action_scale * action
+
         return pd_tar
 
 #####################################################################

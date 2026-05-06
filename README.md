@@ -37,13 +37,11 @@ python ase/run.py --task HumanoidTransfer --cfg_env ase/data/cfg/humanoid_hhi.ya
 
 ## Test
 
-python ase/run.py --test --task HumanoidHHI --num_envs 16 --cfg_env ase/data/cfg/humanoid_hhi.yaml --cfg_train ase/data/cfg/train/rlg/hhi_humanoid.yaml --motion_file /home/hlz/datasets/288_64_test --checkpoint /home/hlz/Downloads/film_256_32_288_64.pth
+python ase/run.py --test --task HumanoidHHI --num_envs 16 --cfg_env ase/data/cfg/humanoid_hhi.yaml --cfg_train ase/data/cfg/train/rlg/hhi_film_humanoid.yaml --motion_file /home/hlz/datasets/valid_sorted_start_256_size_32_motions --checkpoint /home/hlz/Downloads/film_256_32.pth
 
-python ase/run.py --test --task HumanoidHHI --num_envs 16 --cfg_env ase/data/cfg/humanoid_hhi.yaml --cfg_train ase/data/cfg/train/rlg/hhi_humanoid.yaml --motion_file /home/hlz/datasets/simple_walk_motions --checkpoint /home/hlz/Downloads/hhi_film_model.pth
+python ase/run.py --test --task HumanoidHHI --num_envs 16 --cfg_env ase/data/cfg/humanoid_hhi.yaml --cfg_train ase/data/cfg/train/rlg/hhi_film_humanoid.yaml --motion_file /home/hlz/datasets/simple_walk_motions1 --checkpoint /home/hlz/Downloads/hhi_film_model_simple_walk.pth
 
-python ase/run.py --test --task HumanoidHHI --num_envs 16 --cfg_env ase/data/cfg/humanoid_hhi.yaml --cfg_train ase/data/cfg/train/rlg/hhi_film_humanoid.yaml --motion_file /home/hlz/datasets/simple_walk_motions --checkpoint /home/hlz/Downloads/hhi_film_model_simple_walk.pth
-
-python ase/run.py --test --task HumanoidHHI --num_envs 16 --cfg_env ase/data/cfg/humanoid_hhi.yaml --cfg_train ase/data/cfg/train/rlg/hhi_humanoid.yaml --motion_file /home/hlz/datasets/simple_walk_motions --checkpoint /home/hlz/Downloads/hhi_film_model_mlp.pth
+python ase/run.py --test --task HumanoidHHI --num_envs 16 --cfg_env ase/data/cfg/humanoid_hhi.yaml --cfg_train ase/data/cfg/train/rlg/hhi_humanoid.yaml --motion_file /home/hlz/datasets/simple_walk_motions2 --checkpoint /home/hlz/Downloads/hhi_film_model_mlp.pth
 
 python ase/run.py --test --task HumanoidHHITraj --num_envs 16 --cfg_env ase/data/cfg/humanoid_hhi.yaml --cfg_train ase/data/cfg/train/rlg/hhi_humanoid.yaml --motion_file /home/hlz/datasets/simple_walk_motions --checkpoint /home/hlz/Downloads/hhi_traj.pth
 

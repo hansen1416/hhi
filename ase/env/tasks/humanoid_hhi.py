@@ -89,6 +89,9 @@ class HumanoidHHI(Humanoid):
         # we removed all the gloabl_offset logic, so maybe no need to offset here either
         ref_key_pos_next = motion_res_next["key_pos"]
 
+        # used in _action_to_pd_targets
+        self.ref_dof_pos[:] = motion_res["dof_pos"]
+
         self._compute_observations(task_obs=task_obs)
         self._compute_reward(ref_body_pos, ref_body_rot, ref_body_vel, ref_body_ang_vel)
 
@@ -382,7 +385,6 @@ class HumanoidHHI(Humanoid):
 
             truncate_time = self.dt * (self._num_amp_obs_steps - 1)
 
-
             # force full-motion playback when in test/play/non-headless mode
             if self.target_marker_enabled:
                 # HumanoidViewMotion / visualization mode:
@@ -405,13 +407,13 @@ class HumanoidHHI(Humanoid):
 
             target_root_pos     = motion_res["root_pos"]
             target_root_rot     = motion_res["root_rot"]
-            target_dof_pos      = motion_res["dof_pos"]
+            self.ref_dof_pos[:]      = motion_res["dof_pos"]
             target_root_vel     = motion_res["root_vel"]
             target_root_ang_vel = motion_res["root_ang_vel"]
             target_dof_vel      = motion_res["dof_vel"]
             target_key_pos      = motion_res["key_pos"]
 
-            self._reset_actors(env_ids, target_root_pos, target_root_rot, target_dof_pos, target_root_vel, target_root_ang_vel, target_dof_vel)
+            self._reset_actors(env_ids, target_root_pos, target_root_rot, self.ref_dof_pos[:], target_root_vel, target_root_ang_vel, target_dof_vel)
             self._reset_env_tensors(env_ids)
             self._refresh_sim_tensors()
 
@@ -439,7 +441,6 @@ class HumanoidHHI(Humanoid):
         # self._reset_ref_env_ids = env_ids
         # self._reset_ref_motion_ids = motion_ids
         # self._reset_ref_motion_times = motion_times
-
 
         # ---- target motion observation ----
         # self._sampled_motion_ids[env_ids] = motion_ids
