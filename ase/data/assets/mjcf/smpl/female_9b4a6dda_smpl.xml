@@ -16,7 +16,7 @@
     <geom conaffinity="1" condim="3" name="floor" pos="0 0 0" rgba="0.8 0.9 0.8 1" size="100 100 .2" type="plane" material="MatPlane"/>
     <body name="Pelvis" pos="-0.0019 -0.2015 0.0293">
       <freejoint name="Pelvis"/>
-      <geom type="sphere" contype="1" conaffinity="1" density="500" size="0.0909" pos="0.0000 0.0000 0.0000" name="Pelvis"/>
+      <geom type="box" contype="1" conaffinity="1" density="500" pos="-0.0052 -0.0002 -0.0117" size="0.0817 0.1096 0.0379" quat="0.9998 0.0000 0.0000 0.0206" name="Pelvis"/>
       <body name="L_Hip" pos="-0.0038 0.0715 -0.0845">
         <joint name="L_Hip_x" type="hinge" pos="0 0 0" axis="1 0 0" stiffness="800" damping="80" armature="0.02" range="-180.0000 180.0000"/>
         <joint name="L_Hip_y" type="hinge" pos="0 0 0" axis="0 1 0" stiffness="800" damping="80" armature="0.02" range="-180.0000 180.0000"/>
@@ -89,7 +89,7 @@
                 <joint name="Head_x" type="hinge" pos="0 0 0" axis="1 0 0" stiffness="500" damping="50" armature="0.02" range="-180.0000 180.0000"/>
                 <joint name="Head_y" type="hinge" pos="0 0 0" axis="0 1 0" stiffness="500" damping="50" armature="0.02" range="-180.0000 180.0000"/>
                 <joint name="Head_z" type="hinge" pos="0 0 0" axis="0 0 1" stiffness="500" damping="50" armature="0.02" range="-180.0000 180.0000"/>
-                <geom type="sphere" contype="1" conaffinity="1" density="500" size="0.0973" pos="0.0000 0.0000 0.0000" name="Head"/>
+                <geom type="box" contype="1" conaffinity="1" density="500" pos="0.0255 0.0019 0.0316" size="0.0739 0.0575 0.0504" quat="0.9993 0.0000 0.0000 0.0370" name="Head"/>
               </body>
             </body>
             <body name="L_Thorax" pos="-0.0304 0.0703 0.1065">

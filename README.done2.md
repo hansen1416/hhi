@@ -66,5 +66,63 @@ sort them by difficulties, split to batches of size 128 motions.
 
     In your codebase, **PD control is already the actuation path**, and you currently mainly have the imitation reward plus a power penalty, so the **fastest fix is PD tuning + action filter first, then smoothness reward**.
 
+3. Use residual pd control instead of pd control
 
-3. still need to figure out filter the sittintg positions
+    Original absolute PD control maps the policy action to an absolute joint-position target:
+
+    `pd_tar` denotes the target joint position used by the PD controller. which is `q_target`
+
+    ```python
+    pd_tar = pd_action_offset + pd_action_scale * action
+    ```
+
+    That is:
+
+    ```text
+    q_target = q_neutral + s · a
+    ```
+
+    The policy must learn the full target pose.
+
+    Residual PD control instead uses the reference motion pose as the baseline:
+
+    ```python
+    pd_tar = ref_dof_pos + pd_action_scale * action
+    ```
+
+    That is:
+
+    ```text
+    q_target = q_ref + s · a
+    ```
+
+    where:
+
+    ```text
+    q_ref = reference DOF pose from HUMOS/AMASS motion
+    a     = policy residual action
+    s     = PD action scale
+    ```
+
+    The simulator then applies PD control:
+
+    ```text
+    τ = Kp(q_target - q) - Kd q̇
+    ```
+
+    or more generally:
+
+    ```text
+    τ = Kp(q_target - q) + Kd(q̇_target - q̇)
+    ```
+
+    In this setting, `action = 0` means directly tracking the reference pose. The policy only learns a correction around the non-physical motion, mainly for balance, contact consistency, and dynamic feasibility.
+
+    This changes the action semantics:
+
+    ```text
+    absolute PD: action = full joint target
+    residual PD: action = correction around reference motion
+    ```
+
+4. still need to figure out filter the sittintg positions

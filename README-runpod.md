@@ -55,6 +55,8 @@ tmux new -s hhi
 
 -----------------------------
 
+python ase/run.py --task HumanoidHHI --cfg_env ase/data/cfg/humanoid_hhi.yaml --cfg_train ase/data/cfg/train/rlg/hhi_film_humanoid.yaml --motion_file /home/gymuser/hhi/humos_results/ --headless
+
 python ase/run.py --task HumanoidHHI --cfg_env ase/data/cfg/humanoid_hhi.yaml --cfg_train ase/data/cfg/train/rlg/hhi_humanoid.yaml --motion_file /home/gymuser/hhi/humos_results/ --headless
 
 python ase/run.py --task HumanoidHHI --cfg_env ase/data/cfg/humanoid_hhi.yaml --cfg_train ase/data/cfg/train/rlg/hhi_humanoid.yaml --motion_file ./humos_results/ --checkpoint hhi_film_model_simple_walk.pth --headless
