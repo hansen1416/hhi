@@ -203,6 +203,8 @@ def get_args(benchmark=False):
         {"name": "--llc_checkpoint", "type": str, "default": "",
             "help": "Path to the saved weights for the low-level controller of an HRL agent."},
         {"name": "--wandb_artifact", "type": str, "default": "",
+            "help": "The wandb artifact name."},
+        {"name": "--pretrained_ckpt", "type": str, "default": "",
             "help": "The wandb artifact name."},]
 
     if benchmark:

@@ -817,6 +817,7 @@ class HHIAgent(common_agent.CommonAgent):
 
         # ---- transfer learning ----
         self._pretrained_ckpt = config.get('pretrained_ckpt')
+
         self._pretrained_loaded = False
         self._pretrained_raw_ckpt = None
         self._pretrained_model_state = None

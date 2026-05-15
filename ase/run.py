@@ -238,6 +238,9 @@ def main():
 
     # Create default directories for weights and statistics
     cfg_train['params']['config']['train_dir'] = args.output_path
+
+    if args.pretrained_ckpt:
+        cfg_train['params']['config']['pretrained_ckpt'] = args.pretrained_ckpt
     
     vargs = vars(args)
 
