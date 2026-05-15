@@ -65,6 +65,8 @@ python ase/run.py --task HumanoidHHITraj --cfg_env ase/data/cfg/humanoid_hhi.yam
 
 python ase/run.py --task HumanoidHHIRootOffset --cfg_env ase/data/cfg/humanoid_hhi.yaml --cfg_train ase/data/cfg/train/rlg/hhi_humanoid.yaml --motion_file /home/gymuser/hhi/humos_results/ --wandb_artifact hhi_root_offset --headless
 
+python ase/run.py --task HumanoidTransfer --cfg_env ase/data/cfg/humanoid_hhi.yaml --cfg_train ase/data/cfg/train/rlg/transfer_humanoid.yaml --motion_file /home/gymuser/hhi/humos_results/ --pretrained_ckpt phc_models/phc_3_Humanoid.pth --headless
+
 -----------------------------
 
 tmux new -s hhi
